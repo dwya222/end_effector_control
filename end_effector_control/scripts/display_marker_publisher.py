@@ -6,14 +6,14 @@ from visualization_msgs.msg import MarkerArray
 import rospy
 import math
 
-class point_pub(object):
+class marker_pub(object):
     def __init__(self, node_init=False):
         self.pub = rospy.Publisher('/rviz_visual_tools', MarkerArray, queue_size = 100)
         if node_init:
-            rospy.init_node('point_publishing_node')
+            rospy.init_node('marker_publishing_node')
         rospy.sleep(1)
 
-    def display_point(self, point):
+    def display_marker(self, point_list):
         markerArray = MarkerArray()
         count = 0
         MARKERS_MAX = 1
@@ -27,9 +27,9 @@ class point_pub(object):
             marker.scale.z = 0.05
             marker.color.a = 1.0
             marker.color.r = 1.0
-            marker.pose.position.x = point[0]
-            marker.pose.position.y = point[1]
-            marker.pose.position.z = point[2]
+            marker.pose.position.x = point_list[0]
+            marker.pose.position.y = point_list[1]
+            marker.pose.position.z = point_list[2]
             marker.pose.orientation.w = 1.0
 
             # We add the new marker to the MarkerArray, removing the oldest
@@ -53,5 +53,5 @@ class point_pub(object):
 
 
 if __name__=='__main__':
-    point_pub = point(node_init=True)
-    point_pub.display_point([.6,0,.4])
+    marker_pub = marker_pub(node_init=True)
+    marker_pub.display_marker([.6,0,.4])

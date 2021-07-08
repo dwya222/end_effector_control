@@ -6,12 +6,13 @@ import rospy
 import moveit_commander
 import moveit_msgs.msg
 import geometry_msgs.msg
+from geometry_msgs.msg import Point
 import math
 from math import pi
 from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
 from scipy.spatial.transform import Rotation as R
-from display_point_publisher import point_pub
+from display_marker_publisher import marker_pub
 
 
 def all_close(goal, actual, tolerance):
@@ -37,10 +38,10 @@ def all_close(goal, actual, tolerance):
   return True
 
 
-class MoveGroupPythonIntefaceTutorial(object):
-  """MoveGroupPythonIntefaceTutorial"""
+class MoveGroupPythonInteface(object):
+  """MoveGroupPythonInteface"""
   def __init__(self):
-    super(MoveGroupPythonIntefaceTutorial, self).__init__()
+    super(MoveGroupPythonInteface, self).__init__()
     moveit_commander.roscpp_initialize(sys.argv)
     rospy.init_node('move_group_python_interface', anonymous=True)
     robot = moveit_commander.RobotCommander()
@@ -121,25 +122,29 @@ class MoveGroupPythonIntefaceTutorial(object):
         rpy_new[num] = math.degrees(val)
     print(rpy_new)
 
-  def follow_point(self, point):
+  def follow_point(self, point_list):
+      self.display_point(point_list)
+      x = point_list[0]
+      y = point_list[1]
+      z = point_list[2]
       move_group = self.move_group
       pose_goal = geometry_msgs.msg.Pose()
       # Using horizontal ee orientation
-      if point[2] >= 0.4 and point[2] <= 0.8:
+      if z >= 0.4 and z <= 0.8:
           rpy = [-95, -45, -85]
-          pose_goal.position.x = point[0] - .1
-          pose_goal.position.y = point[1]
-          pose_goal.position.z = point[2]
-      if point[2] < 0.4:
+          pose_goal.position.x = x - .1
+          pose_goal.position.y = y
+          pose_goal.position.z = z
+      if z < 0.4:
           rpy = [145, 30, 125]
-          pose_goal.position.x = point[0] - .1
-          pose_goal.position.y = point[1]
-          pose_goal.position.z = point[2] + .1
-      if point[2] > 0.8:
+          pose_goal.position.x = x - .1
+          pose_goal.position.y = y
+          pose_goal.position.z = z + .1
+      if z > 0.8:
           rpy = [-50, -40, -115]
-          pose_goal.position.x = point[0] - .1
-          pose_goal.position.y = point[1]
-          pose_goal.position.z = point[2] - .05
+          pose_goal.position.x = x - .1
+          pose_goal.position.y = y
+          pose_goal.position.z = z - .05
       rpy_rot = R.from_euler('xyz', rpy, degrees=True)
       quat = rpy_rot.as_quat()
       pose_goal.orientation.x = quat[0]
@@ -153,13 +158,13 @@ class MoveGroupPythonIntefaceTutorial(object):
       current_pose = self.move_group.get_current_pose().pose
       return all_close(pose_goal, current_pose, 0.01)
 
-  def disp_point(self, point):
-      point_publisher = point_pub()
-      point_publisher.display_point(point)
+  def display_point(self, point_list):
+      marker_publisher = marker_pub()
+      marker_publisher.display_marker(point_list)
 
 
 def main():
-  mover = MoveGroupPythonIntefaceTutorial()
+  mover = MoveGroupPythonInteface()
   while True:
       x = input("Enter x position of point: ")
       if x=="start":
@@ -167,9 +172,8 @@ def main():
       else:
           y = input("Enter y position of point: ")
           z = input("Enter z position of point: ")
-          point = [x,y,z]
-          mover.disp_point(point)
-          mover.follow_point(point)
+          point_list = [x,y,z]
+          mover.follow_point(point_list)
 
 if __name__ == '__main__':
   main()
