@@ -10,12 +10,20 @@
         <mesh filename="package://franka_description/meshes/visual/link0.dae"/>
       </geometry>
     </visual>
+    <!-- Adding collision plane -->
     <collision>
       <origin xyz="0 0 -0.025" rpy="0 0 0"/>
       <geometry>
         <box size="2.0 2.0 0.05"/>
       </geometry>
     </collision>
+    <!-- Adding collision plane visual -->
+    <visual>
+      <origin xyz="0 0 -0.025" rpy="0 0 0"/>
+      <geometry>
+	<box size="2.0 2.0 0.05"/>
+      </geometry>
+    </visual>
     <collision>
       <origin rpy="0 1.57079632679 0" xyz="-0.075 0 0.06"/>
       <geometry>
