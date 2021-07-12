@@ -320,10 +320,11 @@
   <joint name="panda_hand_joint" type="fixed">
     <parent link="panda_link8"/>
     <child link="panda_hand"/>
-    <origin rpy="0 0 -0.785398163397" xyz="0 0 0"/>
+    <origin rpy="0 0 -0.785398163397" xyz="0 0 0.1"/>
   </joint>
   <link name="panda_hand">
     <visual>
+      <origin xyz="0 0 -0.1" rpy="0 0 0" />
       <geometry>
         <mesh filename="package://franka_description/meshes/visual/hand.dae"/>
       </geometry>
@@ -367,6 +368,7 @@
   </link>
   <link name="panda_leftfinger">
     <visual>
+      <origin xyz="0 0 -0.1" rpy="0 0 0" />
       <geometry>
         <mesh filename="package://franka_description/meshes/visual/finger.dae"/>
       </geometry>
@@ -374,7 +376,7 @@
   </link>
   <link name="panda_rightfinger">
     <visual>
-      <origin rpy="0 0 3.14159265359" xyz="0 0 0"/>
+      <origin rpy="0 0 3.14159265359" xyz="0 0 -0.1"/>
       <geometry>
         <mesh filename="package://franka_description/meshes/visual/finger.dae"/>
       </geometry>
