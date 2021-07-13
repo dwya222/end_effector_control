@@ -24,43 +24,18 @@ class DemoInterface(object):
         super(DemoInterface, self).__init__()
         moveit_commander.roscpp_initialize(sys.argv)
         rospy.init_node('demo_interface', anonymous=True)
-        robot = moveit_commander.RobotCommander()
-        scene = moveit_commander.PlanningSceneInterface()
-        group_name = "panda_arm"
-        move_group = moveit_commander.MoveGroupCommander(group_name)
-        move_group.set_end_effector_link("panda_hand")
-        display_trajectory_publisher = rospy.Publisher('/move_group/display_planned_path',
+        self.robot = moveit_commander.RobotCommander()
+        self.scene = moveit_commander.PlanningSceneInterface()
+        self.group_name = "panda_arm"
+        self.move_group = moveit_commander.MoveGroupCommander(self.group_name)
+        self.move_group.set_end_effector_link("panda_hand")
+        self.display_trajectory_publisher = rospy.Publisher('/move_group/display_planned_path',
                                                    moveit_msgs.msg.DisplayTrajectory,
                                                    queue_size=1)
-        planning_frame = move_group.get_planning_frame()
-        eef_link = move_group.get_end_effector_link()
-        group_names = robot.get_group_names()
-        self.box_name = ''
-        self.robot = robot
-        self.scene = scene
-        self.move_group = move_group
-        self.display_trajectory_publisher = display_trajectory_publisher
-        self.planning_frame = planning_frame
-        self.eef_link = eef_link
-        self.group_names = group_names
-        rospy.sleep(2)
-        # # Attempting to add BMI obstacles to rviz demo
-        # scene_pub = rospy.Publisher('/move_group/monitored_planning_scene',
-        #                             moveit_msgs.msg.PlanningScene,
-        #                             queue_size=1)
-        # bmi_layout_pose = PoseStamped()
-        # bmi_layout_pose.header.frame_id = robot.get_planning_frame()
-        # bmi_layout_pose.pose.position.x = 0.0
-        # bmi_layout_pose.pose.position.y = 0.0
-        # bmi_layout_pose.pose.position.z = 0.0
-        # bmi_layout_pose.pose.orientation.x = 0.0
-        # bmi_layout_pose.pose.orientation.y = 0.0
-        # bmi_layout_pose.pose.orientation.z = 0.0
-        # bmi_layout_pose.pose.orientation.w = 1.0
-        # print(bmi_layout_pose)
-        # # Latest issue: stl file not to scale -> either rescale in CAD with everything in meters or figure out a way to scale down here
-        # # Can also just add this file into urdf since it is static here
-        # self.scene.add_mesh("bmi_layout", bmi_layout_pose, "./bmi_obstacles.stl", size=(.01,.01,.01))
+        self.scene_pub = rospy.Publisher('/move_group/monitored_planning_scene',
+                                    moveit_msgs.msg.PlanningScene,
+                                    queue_size=1)
+
 
     def all_close(self, goal, actual, tolerance):
         """
@@ -141,7 +116,8 @@ class DemoInterface(object):
         print(rpy_new)
 
     def follow_point(self, point):
-        self.display_point(point)
+        # self.display_point(point)
+        self.publish_obstacle(point, (0.05,0.05,0.05))
         print(point)
         x = point.x
         y = point.y
@@ -176,7 +152,24 @@ class DemoInterface(object):
 
     def display_point(self, point):
         marker_publisher = marker_pub()
-        marker_publisher.display_marker([point.x, point.y, point.z])
+        marker_publisher.display_marker(point)
+
+    def publish_obstacle(self, point, size):
+        # Adding object as obstacle so we don't hit it as we approah
+        self.scene_pub = rospy.Publisher('/move_group/monitored_planning_scene',
+                                    moveit_msgs.msg.PlanningScene,
+                                    queue_size=1)
+        obstacle_pose = PoseStamped()
+        obstacle_pose.header.frame_id = self.robot.get_planning_frame()
+        obstacle_pose.pose.position.x = point.x
+        obstacle_pose.pose.position.y = point.y
+        obstacle_pose.pose.position.z = point.z
+        obstacle_pose.pose.orientation.x = 0.0
+        obstacle_pose.pose.orientation.y = 0.0
+        obstacle_pose.pose.orientation.z = 0.0
+        obstacle_pose.pose.orientation.w = 1.0
+        print(obstacle_pose)
+        self.scene.add_box("obstacle", obstacle_pose, size=size)
 
     def listen_for_point(self):
         rospy.Subscriber("/point_command", Point, self.follow_point)

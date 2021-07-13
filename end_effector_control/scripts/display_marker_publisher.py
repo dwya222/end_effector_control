@@ -13,23 +13,23 @@ class marker_pub(object):
             rospy.init_node('marker_publishing_node')
         rospy.sleep(1)
 
-    def display_marker(self, point_list):
+    def display_marker(self, point):
         markerArray = MarkerArray()
         count = 0
         MARKERS_MAX = 1
         while count == 0:
             marker = Marker()
             marker.header.frame_id = "panda_link0"
-            marker.type = marker.SPHERE
+            marker.type = marker.CUBE
             marker.action = marker.ADD
             marker.scale.x = 0.05
             marker.scale.y = 0.05
             marker.scale.z = 0.05
             marker.color.a = 1.0
-            marker.color.r = 1.0
-            marker.pose.position.x = point_list[0]
-            marker.pose.position.y = point_list[1]
-            marker.pose.position.z = point_list[2]
+            marker.color.g = 1.0
+            marker.pose.position.x = point.x
+            marker.pose.position.y = point.y
+            marker.pose.position.z = point.z
             marker.pose.orientation.w = 1.0
 
             # We add the new marker to the MarkerArray, removing the oldest
