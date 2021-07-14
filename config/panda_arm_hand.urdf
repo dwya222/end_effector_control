@@ -330,11 +330,12 @@
       </geometry>
     </visual>
     <collision>
-      <origin rpy="0 1.57079632679 1.57079632679" xyz="0 0 -0.06"/>
+      <origin rpy="0 1.57079632679 1.57079632679" xyz="0 0 -0.075"/>
       <geometry>
-        <cylinder length="0.1" radius="0.07"/>
+        <cylinder length="0.2" radius="0.04"/>
       </geometry>
     </collision>
+    <!--
     <collision>
       <origin rpy="0 0 0" xyz="0 -0.05 -0.06"/>
       <geometry>
@@ -347,6 +348,22 @@
         <sphere radius="0.07"/>
       </geometry>
     </collision>
+  -->
+    <!-- MY ADDITUON (FINGER CYLINDERS) -->
+    <collision>
+      <origin rpy="0 0 0" xyz="0 -0.05 -0.06"/>
+      <geometry>
+        <cylinder length="0.15" radius="0.015"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0.05 -0.06"/>
+      <geometry>
+        <cylinder length="0.15" radius="0.015"/>
+      </geometry>
+    </collision>
+    <!-- END MY ADDITION -->
+    <!--
     <collision>
       <origin rpy="0 1.57079632679 1.57079632679" xyz="0 0 0.0"/>
       <geometry>
@@ -365,6 +382,7 @@
         <sphere radius="0.05"/>
       </geometry>
     </collision>
+  -->
   </link>
   <link name="panda_leftfinger">
     <visual>
