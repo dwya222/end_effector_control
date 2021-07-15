@@ -9,6 +9,8 @@
   <arg name="debug" default="false" />
   <arg name="pipeline" default="ompl" />
 
+  <!-- By default, not using bmi or grasp URDF -->
+  <arg name="setup" default="default" />
   <!--
   By default, hide joint_state_publisher's GUI
 
@@ -23,6 +25,7 @@
   <!-- Load the URDF, SRDF and other .yaml configuration files on the param server -->
   <include file="$(find end_effector_control)/launch/planning_context.launch">
     <arg name="load_robot_description" value="true"/>
+    <arg name="setup" value="$(arg setup)"/>
   </include>
 
   <!-- If needed, broadcast static tf for robot root -->

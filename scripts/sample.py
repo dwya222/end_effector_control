@@ -14,13 +14,13 @@ def main():
   np.set_printoptions(suppress=True)
   while True:
        raw_input("Type enter to see next pose \n")
-       current_pose = mover.move_group.get_current_pose().pose
+       current_pose = mover.move_group.get_current_pose()
        current_joint_values = mover.move_group.get_current_joint_values()
        print("joint state info:")
        print(current_joint_values)
        print("pose info:")
        print(current_pose)
-       output = euler(current_pose)
+       output = euler(current_pose.pose)
        print("Euler [x, y, z]:")
        print(output)
 

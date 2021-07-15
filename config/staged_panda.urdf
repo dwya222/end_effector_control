@@ -180,17 +180,17 @@
   <joint name="panda_hand_joint" type="fixed">
       <parent link="panda_link8" />
       <child link="panda_hand" />
-      <origin rpy="0 0 -0.785398163397" xyz="0 0 0.1" />
+      <origin rpy="0 0 -0.785398163397" xyz="0 0 0.15" />
   </joint>
   <link name="panda_hand">
       <visual>
-        <origin rpy="0 0 0.0" xyz="0 0 -0.1" />
+        <origin rpy="0 0 0.0" xyz="0 0 -0.15" />
           <geometry>
               <mesh filename="package://moveit_resources_panda_description/meshes/visual/hand.dae" />
           </geometry>
       </visual>
       <collision>
-        <origin rpy="0 0 0.0" xyz="0 0 -0.1" />
+        <origin rpy="0 0 0.0" xyz="0 0 -0.15" />
           <geometry>
               <mesh filename="package://moveit_resources_panda_description/meshes/collision/hand.stl" />
           </geometry>
@@ -198,13 +198,13 @@
   </link>
   <link name="panda_leftfinger">
       <visual>
-        <origin rpy="0 0 0.0" xyz="0 0 -0.1" />
+        <origin rpy="0 0 0.0" xyz="0 0 -0.15" />
           <geometry>
               <mesh filename="package://moveit_resources_panda_description/meshes/visual/finger.dae" />
           </geometry>
       </visual>
       <collision>
-        <origin rpy="0 0 0.0" xyz="0 0 -0.1" />
+        <origin rpy="0 0 0.0" xyz="0 0 -0.15" />
           <geometry>
               <mesh filename="package://moveit_resources_panda_description/meshes/collision/finger.stl" />
           </geometry>
@@ -212,13 +212,13 @@
   </link>
   <link name="panda_rightfinger">
       <visual>
-          <origin rpy="0 0 3.14159265359" xyz="0 0 -0.1" />
+          <origin rpy="0 0 3.14159265359" xyz="0 0 -0.15" />
           <geometry>
               <mesh filename="package://moveit_resources_panda_description/meshes/visual/finger.dae" />
           </geometry>
       </visual>
       <collision>
-          <origin rpy="0 0 3.14159265359" xyz="0 0 -0.1" />
+          <origin rpy="0 0 3.14159265359" xyz="0 0 -0.15" />
           <geometry>
               <mesh filename="package://moveit_resources_panda_description/meshes/collision/finger.stl" />
           </geometry>

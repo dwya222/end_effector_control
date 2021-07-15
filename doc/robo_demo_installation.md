@@ -78,8 +78,8 @@ Source: https://frankaemika.github.io/docs/installation_linux.html
 `cd franka_ros` \
 `git checkout melodic-devel`
 3. Install any missing dependencies and build the packages \
-`cd ..` \
-`rosdep install --from-paths src --ignore-src --rosdistro kinetic -y --skip-keys libfranka` \
+`cd ../..` \
+`rosdep install --from-paths src --ignore-src --rosdistro melodic -y --skip-keys libfranka` \
 `catkin build -DCMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH=~/libfranka/build`\
 `source devel/setup.zsh`
 

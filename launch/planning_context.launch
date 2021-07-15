@@ -4,18 +4,24 @@
   <!-- By default we do not overwrite the URDF. Change the following to true to change the default behavior -->
   <arg name="load_robot_description" default="false"/>
 
-  <!-- By default we will not be working in the BMI setup environment -->
-  <arg name="bmi_setup" default="false"/>
+  <!-- By default we will not be working in the BMI or grasp setup environment -->
+  <arg name="setup" default="default"/>
 
   <!-- The name of the parameter under which the URDF is loaded -->
   <arg name="robot_description" default="robot_description"/>
 
   <!-- Load universal robot description format (URDF) -->
-  <param if="$(eval arg('load_robot_description') and not arg('bmi_setup'))"
+  <param if="$(eval arg('load_robot_description') and setup=='default')"
     name="$(arg robot_description)" textfile="$(find end_effector_control)/config/panda.urdf"/>
 
-  <param if="$(eval arg('load_robot_description') and arg('bmi_setup'))"
+  <param if="$(eval arg('load_robot_description') and setup=='bmi')"
     name="$(arg robot_description)" textfile="$(find end_effector_control)/config/bmi_panda.urdf"/>
+
+  <param if="$(eval arg('load_robot_description') and setup=='grasp')"
+    name="$(arg robot_description)" textfile="$(find end_effector_control)/config/grasp_panda.urdf"/>
+
+  <param if="$(eval arg('load_robot_description') and setup=='staged')"
+    name="$(arg robot_description)" textfile="$(find end_effector_control)/config/staged_panda.urdf"/>
 
   <!-- The semantic description that corresponds to the URDF -->
   <param name="$(arg robot_description)_semantic" command="$(find xacro)/xacro '$(find moveit_resources_panda_moveit_config)/config/panda_arm_hand.srdf.xacro'" if="$(arg load_gripper)" />

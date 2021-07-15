@@ -1,7 +1,7 @@
 import rospy
 from geometry_msgs.msg import Point
 import geometry_msgs.msg
-point_publisher = rospy.Publisher('/point_command', Point, queue_size=1)
+point_publisher = rospy.Publisher('/point_command', Point, queue_size=None)
 rospy.init_node('point_pub', anonymous=True)
 point_goal = geometry_msgs.msg.Point()
 point_goal.x = 0.5
