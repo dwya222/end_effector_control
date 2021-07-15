@@ -4,33 +4,32 @@
   <!-- By default we do not overwrite the URDF. Change the following to true to change the default behavior -->
   <arg name="load_robot_description" default="false"/>
 
+  <!-- By default we will not be working in the BMI setup environment -->
   <arg name="bmi_setup" default="false"/>
 
   <!-- The name of the parameter under which the URDF is loaded -->
   <arg name="robot_description" default="robot_description"/>
 
   <!-- Load universal robot description format (URDF) -->
-  <param if="$(eval arg('load_robot_description') and arg('load_gripper') and not arg('bmi_setup'))"
-    name="$(arg robot_description)" textfile="$(find end_effector_control)/config/panda_arm_hand.urdf"/>
+  <param if="$(eval arg('load_robot_description') and not arg('bmi_setup'))"
+    name="$(arg robot_description)" textfile="$(find end_effector_control)/config/panda.urdf"/>
 
-  <param if="$(eval arg('load_robot_description') and arg('load_gripper') and arg('bmi_setup'))"
-    name="$(arg robot_description)" textfile="$(find end_effector_control)/config/bmi_panda_arm_hand.urdf"/>
-
-  <param if="$(eval arg('load_robot_description') and not arg('load_gripper'))" name="$(arg robot_description)"
-    command="$(find xacro)/xacro '$(find franka_description)/robots/panda_arm.urdf.xacro'"/>
+  <param if="$(eval arg('load_robot_description') and arg('bmi_setup'))"
+    name="$(arg robot_description)" textfile="$(find end_effector_control)/config/bmi_panda.urdf"/>
 
   <!-- The semantic description that corresponds to the URDF -->
-  <param name="$(arg robot_description)_semantic" command="$(find xacro)/xacro '$(find panda_moveit_config)/config/panda_arm_hand.srdf.xacro'" if="$(arg load_gripper)" />
-  <param name="$(arg robot_description)_semantic" command="$(find xacro)/xacro '$(find panda_moveit_config)/config/panda_arm.srdf.xacro'" unless="$(arg load_gripper)" />
+  <param name="$(arg robot_description)_semantic" command="$(find xacro)/xacro '$(find moveit_resources_panda_moveit_config)/config/panda_arm_hand.srdf.xacro'" if="$(arg load_gripper)" />
+  <param name="$(arg robot_description)_semantic" command="$(find xacro)/xacro '$(find moveit_resources_panda_moveit_config)/config/panda_arm.srdf.xacro'" unless="$(arg load_gripper)" />
 
   <!-- Load updated joint limits (override information from URDF) -->
   <group ns="$(arg robot_description)_planning">
-    <rosparam command="load" file="$(find panda_moveit_config)/config/joint_limits.yaml"/>
+    <rosparam command="load" file="$(find moveit_resources_panda_moveit_config)/config/joint_limits.yaml"/>
+    <rosparam command="load" file="$(find moveit_resources_panda_moveit_config)/config/cartesian_limits.yaml"/>
   </group>
 
   <!-- Load default settings for kinematics; these settings are overridden by settings in a node's namespace -->
   <group ns="$(arg robot_description)_kinematics">
-    <rosparam command="load" file="$(find panda_moveit_config)/config/kinematics.yaml"/>
+    <rosparam command="load" file="$(find moveit_resources_panda_moveit_config)/config/kinematics.yaml"/>
   </group>
 
 </launch>

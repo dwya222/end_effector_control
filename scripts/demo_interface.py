@@ -117,7 +117,7 @@ class DemoInterface(object):
 
     def follow_point(self, point):
         # self.display_point(point)
-        self.publish_obstacle(point, (0.05,0.05,0.05))
+        self.publish_obstacle(point, (0.03,0.03,0.03))
         print(point)
         x = point.x
         y = point.y
