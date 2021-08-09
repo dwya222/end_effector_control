@@ -13,11 +13,11 @@ class marker_pub(object):
             rospy.init_node('marker_publishing_node')
         rospy.sleep(1)
 
-    def display_marker(self, point):
+    def display_marker(self, point_list):
         markerArray = MarkerArray()
         count = 0
-        MARKERS_MAX = 1
-        while count == 0:
+        MARKERS_MAX = 15
+        for point in point_list:
             marker = Marker()
             marker.header.frame_id = "panda_link0"
             marker.type = marker.CUBE
@@ -26,7 +26,7 @@ class marker_pub(object):
             marker.scale.y = 0.05
             marker.scale.z = 0.05
             marker.color.a = 1.0
-            marker.color.g = 1.0
+            marker.color.b = 1.0
             marker.pose.position.x = point.x
             marker.pose.position.y = point.y
             marker.pose.position.z = point.z

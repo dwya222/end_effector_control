@@ -16,8 +16,9 @@ def main():
       else:
           point_msg.y = input("Enter y position of point: ")
           point_msg.z = input("Enter z position of point: ")
-          grasp = input("Grasp? [y/n]")
-          mover.follow_point(point_msg, grasp=True if grasp=='y' else False)
+          # grasp = input("Grasp? [y/n]")
+          # mover.follow_point(point_msg, grasp=True if grasp=='y' else False)
+          mover.follow_point(point_msg, grasp=True)
 
 if __name__ == '__main__':
   main()

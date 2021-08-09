@@ -31,13 +31,21 @@
       <!-- END TABLE COLLISION PLANE ADDITION -->
       <!-- BEGIN BMI EXPERIMENT SETUP ADDITION -->
       <collision>
-        <origin xyz="0.2 0.5 -0.75" rpy="0 0 -1.5708"/>
+        <!-- <origin xyz="0.0 0.2 -0.75" rpy="0 0 -1.5708"/> -->
+        <!-- <origin xyz="0.4 0.5 -0.75" rpy="0 0 -1.5708"/> -->
+        <!-- <origin xyz="0.15 0.5 -0.75" rpy="0 0 -1.5708"/> -->
+        <!-- <origin xyz="-0.4 .375 -0.75" rpy="0 0 -1.5708"/> -->
+        <origin xyz="-0.55 .75 -0.75" rpy="0 0 -1.5708"/>
         <geometry>
           <mesh filename="package://end_effector_control/config/bmi_setup.stl" scale="0.001 0.001 0.001"/>
         </geometry>
       </collision>
       <visual>
-        <origin xyz="0.2 0.5 -0.75" rpy="0 0 -1.5708"/>
+        <!-- <origin xyz="0.0 0.2 -0.75" rpy="0 0 -1.5708"/> -->
+        <!-- <origin xyz="0.4 0.5 -0.75" rpy="0 0 -1.5708"/> -->
+        <!-- <origin xyz="0.15 0.5 -0.75" rpy="0 0 -1.5708"/> -->
+        <!-- <origin xyz="-0.4 .375 -0.75" rpy="0 0 -1.5708"/> -->
+        <origin xyz="-0.55 .75 -0.75" rpy="0 0 -1.5708"/>
         <geometry>
           <mesh filename="package://end_effector_control/config/bmi_setup.stl" scale="0.001 0.001 0.001"/>
         </geometry>
@@ -198,13 +206,20 @@
   </joint>
   <link name="panda_hand">
       <visual>
-        <origin rpy="0 0 0.0" xyz="0 0 -0.1" />
+        <origin rpy="0 0 0.0" xyz="0 0 -0.15" />
           <geometry>
               <mesh filename="package://moveit_resources_panda_description/meshes/visual/hand.dae" />
           </geometry>
       </visual>
+      <!-- ADDING SPHERE TO SHOW WHERE HAND FOLLOWING POINT IS -->
+      <visual>
+        <origin rpy="0 0 0.0" xyz="0 0 0" />
+          <geometry>
+              <sphere radius="0.01" />
+          </geometry>
+      </visual>
       <collision>
-        <origin rpy="0 0 0.0" xyz="0 0 -0.1" />
+        <origin rpy="0 0 0.0" xyz="0 0 -0.15" />
           <geometry>
               <mesh filename="package://moveit_resources_panda_description/meshes/collision/hand.stl" />
           </geometry>
@@ -212,13 +227,13 @@
   </link>
   <link name="panda_leftfinger">
       <visual>
-        <origin rpy="0 0 0.0" xyz="0 0 -0.1" />
+        <origin rpy="0 0 0.0" xyz="0 0 -0.15" />
           <geometry>
               <mesh filename="package://moveit_resources_panda_description/meshes/visual/finger.dae" />
           </geometry>
       </visual>
       <collision>
-        <origin rpy="0 0 0.0" xyz="0 0 -0.1" />
+        <origin rpy="0 0 0.0" xyz="0 0 -0.15" />
           <geometry>
               <mesh filename="package://moveit_resources_panda_description/meshes/collision/finger.stl" />
           </geometry>
@@ -226,13 +241,13 @@
   </link>
   <link name="panda_rightfinger">
       <visual>
-          <origin rpy="0 0 3.14159265359" xyz="0 0 -0.1" />
+          <origin rpy="0 0 3.14159265359" xyz="0 0 -0.15" />
           <geometry>
               <mesh filename="package://moveit_resources_panda_description/meshes/visual/finger.dae" />
           </geometry>
       </visual>
       <collision>
-          <origin rpy="0 0 3.14159265359" xyz="0 0 -0.1" />
+          <origin rpy="0 0 3.14159265359" xyz="0 0 -0.15" />
           <geometry>
               <mesh filename="package://moveit_resources_panda_description/meshes/collision/finger.stl" />
           </geometry>
