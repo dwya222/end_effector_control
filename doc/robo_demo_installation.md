@@ -74,9 +74,9 @@ Source: https://frankaemika.github.io/docs/installation_linux.html
 1. Clone the franka_ros repository into the MoveIt workspace src folder \
 `cd ~/ws_moveit/src` \
 `git clone --recursive https://github.com/frankaemika/franka_ros src/franka_ros` \
-2. Checkout the melodic version of franka ros \
+2. Checkout the same version of franka_ros as libfranka \
 `cd franka_ros` \
-`git checkout melodic-devel`
+`git checkout 0.7.1`
 3. Install any missing dependencies and build the packages \
 `cd ../..` \
 `rosdep install --from-paths src --ignore-src --rosdistro melodic -y --skip-keys libfranka` \
