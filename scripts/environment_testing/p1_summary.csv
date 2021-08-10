@@ -1,0 +1,13 @@
+,front,left,right,back,summary
+0,True,False,True,False,Success
+1,False,True,False,False,Success
+2,False,False,False,False,Fail
+3,False,False,False,False,Fail
+4,True,False,False,False,Success
+5,False,False,False,False,Fail
+6,True,False,True,True,Success
+7,False,False,False,False,Fail
+8,False,False,False,False,Fail
+9,True,False,False,False,Success
+10,True,False,False,False,Success
+11,False,False,False,False,Fail
