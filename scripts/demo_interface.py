@@ -131,7 +131,7 @@ class DemoInterface(object):
 
     def planning_test(self, point, approach="front"):
         # Adding object as object so we don't hit it as we approach
-        self.publish_object(point, (0.055,0.055,0.055))
+        self.publish_object(point, 0.0275, type='sphere')
         x = point.x
         y = point.y
         z = point.z
@@ -174,7 +174,7 @@ class DemoInterface(object):
         marker_publisher = marker_pub()
         marker_publisher.display_marker(point_list)
 
-    def publish_object(self, point, size):
+    def publish_object(self, point, size, type='box'):
         rospy.sleep(1)
         self.scene.remove_world_object("object")
         object_pose = PoseStamped()
@@ -186,7 +186,10 @@ class DemoInterface(object):
         object_pose.pose.orientation.y = 0.0
         object_pose.pose.orientation.z = 0.0
         object_pose.pose.orientation.w = 1.0
-        self.scene.add_box("object", object_pose, size=size)
+        if type == 'box':
+            self.scene.add_box("object", object_pose, size=size)
+        else:
+            self.scene.add_sphere("object", object_pose, radius=size)
 
     def listen_for_point(self):
         # while True:

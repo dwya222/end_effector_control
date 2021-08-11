@@ -10,27 +10,29 @@
   <!-- The name of the parameter under which the URDF is loaded -->
   <arg name="robot_description" default="robot_description"/>
 
-  <!-- Load universal robot description format (URDF) -->
-  <param if="$(eval arg('load_robot_description') and setup=='default')"
-    name="$(arg robot_description)" textfile="$(find end_effector_control)/config/panda.urdf"/>
-
-  <param if="$(eval arg('load_robot_description') and setup=='bmi')"
-    name="$(arg robot_description)" textfile="$(find end_effector_control)/config/bmi_panda.urdf"/>
-
-  <param if="$(eval arg('load_robot_description') and setup=='grasp')"
-    name="$(arg robot_description)" textfile="$(find end_effector_control)/config/grasp_panda.urdf"/>
-
-  <param if="$(eval arg('load_robot_description') and setup=='staged')"
-    name="$(arg robot_description)" textfile="$(find end_effector_control)/config/staged_panda.urdf"/>
+  <!-- Load urdf depending on setup -->
+  <param if="$(eval arg('load_robot_description') and setup=='default')" name="$(arg robot_description)" textfile="$(find end_effector_control)/config/panda.urdf"/>
+  <param if="$(eval arg('load_robot_description') and setup=='bmi')" name="$(arg robot_description)" textfile="$(find end_effector_control)/config/bmi_panda.urdf"/>
+  <param if="$(eval arg('load_robot_description') and setup=='bmi_p1')" name="$(arg robot_description)" textfile="$(find end_effector_control)/config/bmi_positions/p1.urdf"/>
+  <param if="$(eval arg('load_robot_description') and setup=='bmi_p2')" name="$(arg robot_description)" textfile="$(find end_effector_control)/config/bmi_positions/p2.urdf"/>
+  <param if="$(eval arg('load_robot_description') and setup=='bmi_p3')" name="$(arg robot_description)" textfile="$(find end_effector_control)/config/bmi_positions/p3.urdf"/>
+  <param if="$(eval arg('load_robot_description') and setup=='bmi_p4')" name="$(arg robot_description)" textfile="$(find end_effector_control)/config/bmi_positions/p4.urdf"/>
+  <param if="$(eval arg('load_robot_description') and setup=='bmi_p5')" name="$(arg robot_description)" textfile="$(find end_effector_control)/config/bmi_positions/p5.urdf"/>
+  <param if="$(eval arg('load_robot_description') and setup=='grasp')" name="$(arg robot_description)" textfile="$(find end_effector_control)/config/grasp_panda.urdf"/>
+  <param if="$(eval arg('load_robot_description') and setup=='staged')" name="$(arg robot_description)" textfile="$(find end_effector_control)/config/staged_panda.urdf"/>
 
   <!-- The semantic description that corresponds to the URDF -->
-  <param name="$(arg robot_description)_semantic" command="$(find xacro)/xacro '$(find moveit_resources_panda_moveit_config)/config/panda_arm_hand.srdf.xacro'" if="$(arg load_gripper)" />
-  <param name="$(arg robot_description)_semantic" command="$(find xacro)/xacro '$(find moveit_resources_panda_moveit_config)/config/panda_arm.srdf.xacro'" unless="$(arg load_gripper)" />
+  <param name="$(arg robot_description)_semantic"
+    command="$(find xacro)/xacro '$(find moveit_resources_panda_moveit_config)/config/panda_arm_hand.srdf.xacro'" if="$(arg load_gripper)" />
+  <param name="$(arg robot_description)_semantic"
+    command="$(find xacro)/xacro '$(find moveit_resources_panda_moveit_config)/config/panda_arm.srdf.xacro'" unless="$(arg load_gripper)" />
 
   <!-- Load updated joint limits (override information from URDF) -->
   <group ns="$(arg robot_description)_planning">
-    <rosparam command="load" file="$(find moveit_resources_panda_moveit_config)/config/joint_limits.yaml"/>
-    <rosparam command="load" file="$(find moveit_resources_panda_moveit_config)/config/cartesian_limits.yaml"/>
+    <rosparam command="load"
+      file="$(find moveit_resources_panda_moveit_config)/config/joint_limits.yaml"/>
+    <rosparam command="load"
+      file="$(find moveit_resources_panda_moveit_config)/config/cartesian_limits.yaml"/>
   </group>
 
   <!-- Load default settings for kinematics; these settings are overridden by settings in a node's namespace -->

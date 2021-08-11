@@ -20,7 +20,7 @@ class marker_pub(object):
         for point in point_list:
             marker = Marker()
             marker.header.frame_id = "panda_link0"
-            marker.type = marker.CUBE
+            marker.type = marker.SPHERE
             marker.action = marker.ADD
             marker.scale.x = 0.05
             marker.scale.y = 0.05
