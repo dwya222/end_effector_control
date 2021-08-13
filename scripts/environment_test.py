@@ -67,10 +67,11 @@ def grasp_summary(row):
         return 'Fail'
 
 if __name__ == "__main__":
-    position = input("Which position? (1,2,3,4 or 5)\n")
+    position = input("Which position? (1,2,3,4,5,6 or 7)\n")
     position_dict = {1: np.array([0.0, 0.2, -0.75]), 2: np.array([0.4, 0.5, -0.75]),
                      3: np.array([0.15, 0.5, -0.75]), 4: np.array([-0.4, 0.375, -0.75]),
-                     5: np.array([-0.55, 0.75, -0.75])}
+                     5: np.array([-0.55, 0.75, -0.75]), 6: np.array([0.15, 1.0, -0.75]),
+                     7: np.array([-0.4, 1.125, -0.75])}
     origin = position_dict[position]
     num_cups=12
     iter=5

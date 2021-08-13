@@ -18,6 +18,8 @@
   <param if="$(eval arg('load_robot_description') and setup=='bmi_p3')" name="$(arg robot_description)" textfile="$(find end_effector_control)/config/bmi_positions/p3.urdf"/>
   <param if="$(eval arg('load_robot_description') and setup=='bmi_p4')" name="$(arg robot_description)" textfile="$(find end_effector_control)/config/bmi_positions/p4.urdf"/>
   <param if="$(eval arg('load_robot_description') and setup=='bmi_p5')" name="$(arg robot_description)" textfile="$(find end_effector_control)/config/bmi_positions/p5.urdf"/>
+  <param if="$(eval arg('load_robot_description') and setup=='bmi_p6')" name="$(arg robot_description)" textfile="$(find end_effector_control)/config/bmi_positions/p6.urdf"/>
+  <param if="$(eval arg('load_robot_description') and setup=='bmi_p7')" name="$(arg robot_description)" textfile="$(find end_effector_control)/config/bmi_positions/p7.urdf"/>
   <param if="$(eval arg('load_robot_description') and setup=='grasp')" name="$(arg robot_description)" textfile="$(find end_effector_control)/config/grasp_panda.urdf"/>
   <param if="$(eval arg('load_robot_description') and setup=='staged')" name="$(arg robot_description)" textfile="$(find end_effector_control)/config/staged_panda.urdf"/>
 
