@@ -104,7 +104,7 @@ if __name__ == "__main__":
         file_name = base_file_name + str(version)
         version += 1
 
-    df.to_csv("./test_results/" + file_name + ".csv")
-    df.to_pickle("./test_results/" + file_name + ".pkl")
+    df.to_csv('~/robo_demo_ws/src/end_effector_control/scripts/test_results/' + file_name + ".csv")
+    df.to_pickle('~/robo_demo_ws/src/end_effector_control/scripts/test_results/' + file_name + ".pkl")
     # df_styled = summarized_df.style.background_gradient() #adding a gradient based on values in cell
     # dfi.export(df_styled,'first_attempt.png')
