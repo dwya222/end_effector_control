@@ -36,8 +36,9 @@
         <!-- <origin xyz="0.0 0.2 -0.75" rpy="0 0 -1.5708"/> -->
         <!-- <origin xyz="0.4 0.5 -0.75" rpy="0 0 -1.5708"/> -->
         <!-- <origin xyz="0.15 0.5 -0.75" rpy="0 0 -1.5708"/> -->
-        <origin xyz="-0.4 .375 -0.75" rpy="0 0 -1.5708"/>
+        <!-- <origin xyz="-0.4 .375 -0.75" rpy="0 0 -1.5708"/> -->
         <!-- <origin xyz="-0.55 .75 -0.75" rpy="0 0 -1.5708"/> -->
+        <origin xyz="-0.4 1.125 -0.75" rpy="0 0 -1.5708"/>
         <geometry>
           <mesh filename="package://end_effector_control/config/bmi_setup.stl" scale="0.001 0.001 0.001"/>
         </geometry>
@@ -46,8 +47,9 @@
         <!-- <origin xyz="0.0 0.2 -0.75" rpy="0 0 -1.5708"/> -->
         <!-- <origin xyz="0.4 0.5 -0.75" rpy="0 0 -1.5708"/> -->
         <!-- <origin xyz="0.15 0.5 -0.75" rpy="0 0 -1.5708"/> -->
-        <origin xyz="-0.4 .375 -0.75" rpy="0 0 -1.5708"/>
+        <!-- <origin xyz="-0.4 .375 -0.75" rpy="0 0 -1.5708"/> -->
         <!-- <origin xyz="-0.55 0.75 -0.75" rpy="0 0 -1.5708"/> -->
+        <origin xyz="-0.4 1.125 -0.75" rpy="0 0 -1.5708"/>
         <geometry>
           <mesh filename="package://end_effector_control/config/bmi_setup.stl" scale="0.001 0.001 0.001"/>
         </geometry>
@@ -57,8 +59,9 @@
         <!-- <origin xyz="0.1 -0.825 -0.5" rpy="0 0 1.5708"/> -->
         <!-- <origin xyz="0.5 -0.7 -0.5" rpy="0 0 1.5708"/> -->
         <!-- <origin xyz="0.0 -0.7 -0.5" rpy="0 0 1.5708"/> -->
-        <origin xyz="-0.3 -0.65 -0.5" rpy="0 0 1.5708"/>
+        <!-- <origin xyz="-0.3 -0.65 -0.5" rpy="0 0 1.5708"/> -->
         <!-- <origin xyz="-0.45 -0.275 -0.5" rpy="0 0 1.5708"/> -->
+        <origin xyz="-0.3 0.15 -0.5" rpy="0 0 1.5708"/>
         <geometry>
           <mesh filename="package://end_effector_control/config/seated_person.stl" scale="0.01 0.01 0.01"/>
         </geometry>
@@ -67,8 +70,8 @@
         <!-- <origin xyz="0.1 -0.825 -0.5" rpy="0 0 1.5708"/> -->
         <!-- <origin xyz="0.5 -0.7 -0.5" rpy="0 0 1.5708"/> -->
         <!-- <origin xyz="0.0 -0.7 -0.5" rpy="0 0 1.5708"/> -->
-        <origin xyz="-0.3 -0.65 -0.5" rpy="0 0 1.5708"/>
         <!-- <origin xyz="-0.45 -0.275 -0.5" rpy="0 0 1.5708"/> -->
+        <origin xyz="-0.3 0.15 -0.5" rpy="0 0 1.5708"/>
         <!-- <material name="blue"/> -->
         <geometry>
           <mesh filename="package://end_effector_control/config/seated_person.stl" scale="0.01 0.01 0.01"/>
