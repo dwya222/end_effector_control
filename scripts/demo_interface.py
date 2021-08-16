@@ -3,6 +3,7 @@
 import sys
 import copy
 import rospy
+import genpy
 import math
 import numpy as np
 from math import pi
@@ -12,8 +13,9 @@ from franka_gripper.msg import MoveGoal, MoveAction
 import moveit_msgs.msg
 import geometry_msgs.msg
 from geometry_msgs.msg import Point, PoseStamped
-from moveit_msgs.msg import Grasp, GripperTranslation, PlaceLocation, MoveItErrorCodes, Constraints, OrientationConstraint
+from moveit_msgs.msg import Grasp, GripperTranslation, PlaceLocation, MoveItErrorCodes, RobotTrajectory
 from trajectory_msgs.msg import JointTrajectoryPoint, JointTrajectory
+from sensor_msgs.msg import JointState
 from std_msgs.msg import String, Bool
 from moveit_commander.conversions import pose_to_list
 from scipy.spatial.transform import Rotation as R
@@ -35,13 +37,14 @@ class DemoInterface(object):
         self.group_name = "panda_arm"
         self.move_group = moveit_commander.MoveGroupCommander(self.group_name)
         self.move_group.set_planner_id("RRTstarkConfigDefault")
+        self.move_group.set_planning_time(1.0)
         self.move_group.set_end_effector_link("panda_hand")
         self.display_trajectory_publisher = rospy.Publisher('/move_group/display_planned_path',
                                                    moveit_msgs.msg.DisplayTrajectory,
-                                                   queue_size=2)
+                                                   queue_size=1)
         self.scene_pub = rospy.Publisher('/move_group/monitored_planning_scene',
                                     moveit_msgs.msg.PlanningScene,
-                                    queue_size=2)
+                                    queue_size=1)
         # create client and variable for gripper actions
         self.real = real
         if self.real:
@@ -196,3 +199,42 @@ class DemoInterface(object):
         # time.sleep(1)
         rospy.Subscriber("/point_command", Point, self.follow_point, queue_size=1)
         rospy.spin()
+
+    def exec_traj(self):
+        # Always start this test from the starting position
+        self.go_to_start()
+        # Setup some local variables to help create RobotTrajectory and JointTrajectoryPoint messages
+        current_state = self.move_group.get_current_state().joint_state
+        current_joint_positions = current_state.position
+        current_joint_velocities = current_state.velocity
+        current_joint_efforts = current_state.effort
+        # Create our RobotTrajectory message with the appropriate headers
+        trajectory = RobotTrajectory()
+        trajectory.joint_trajectory.header.frame_id = current_state.header.frame_id
+        trajectory.joint_trajectory.joint_names = current_state.name
+        # Create 2 points that will be in the RobotTrajectory message (normally there will be  a lot more
+        # when these messages are created using move_group.plan() as in the planning_test method in this function
+        start_point = JointTrajectoryPoint()
+        start_point.positions = current_joint_positions
+        start_point.velocities = current_joint_velocities
+        start_point.effort = current_joint_efforts
+        end_point = copy.deepcopy(start_point)
+        end_point_list = list(end_point.positions)
+        end_point_list[0] += 0.5
+        end_point_list[1] += 0.5
+        end_point_list[2] += 0.5
+        end_point_list[3] += 0.5
+        end_point_list[4] += 0.5
+        end_point.positions = end_point_list
+        end_point.time_from_start = genpy.Duration(2.0)
+        points = [start_point, end_point]
+        trajectory.joint_trajectory.points = points
+
+        self.move_group.execute(trajectory, wait=False)
+        self.start_time = rospy.Time.now()
+
+    def get_trajectory_points(self, plan):
+        points = plan.joint_trajectory.points
+        for point in points:
+            point.
+        new_points = []
