@@ -18,7 +18,7 @@ for i in range(1,8):
     df = df.reset_index()
     df = df.drop('index', axis=1)
     for j in range(0,12):
-        df['id'][j] = j
+        df['id'][j] = j+1
 
     df.columns = ['Cup #', 'Cup Success Rate']
     df['Overall Success Rate'] = ''
@@ -28,6 +28,7 @@ for i in range(1,8):
     print(df)
     print(overall_success_rate)
     print(minimal_success_rate)
+    df.set_index('Cup #', inplace=True)
     df_styled = df.style.background_gradient() #adding a gradient based on values in cell
     dfi.export(df_styled,'position_' + str(i) + '_.png')
 
@@ -37,6 +38,7 @@ for i in range(1,8):
 positions = [1,2,3,4,5,6,7]
 df = pd.DataFrame({'Positions': positions, 'Overall Success Rates': overall_success_rate_list,
                    'Minimal Success Rates': minimal_success_rate_list})
+df.set_index('Positions', inplace=True)
 
 # df_styled = df.style.background_gradient() #adding a gradient based on values in cell
 df.to_pickle('overall_results.pkl')
