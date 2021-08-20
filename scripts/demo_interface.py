@@ -138,7 +138,6 @@ class DemoInterface(object):
         x = point.x
         y = point.y
         z = point.z
-        rospy.loginfo(point)
         pose_goal = geometry_msgs.msg.Pose()
         move_group = self.move_group
         if approach=="front":
@@ -229,12 +228,44 @@ class DemoInterface(object):
         end_point.time_from_start = genpy.Duration(2.0)
         points = [start_point, end_point]
         trajectory.joint_trajectory.points = points
-
         self.move_group.execute(trajectory, wait=False)
-        self.start_time = rospy.Time.now()
 
-    def get_trajectory_points(self, plan):
+    def change_traj(self):
+        self.go_to_start()
+        point = Point()
+        point.x = 0.5
+        point.y = 0.2
+        point.z = 0.6
+        plan = self.planning_test(point)
+        point2 = Point()
+        point2.x = 0.4
+        point2.y = -0.3
+        point2.z = 0.3
+
+        self.move_group.execute(plan, wait=False)
+        initial_exec_time = rospy.Time.now()
+        self.set_plan_state(plan, initial_exec_time)
+        plan2 = self.planning_test(point2)
+        rospy.logwarn("Actual State")
+        rospy.loginfo(self.move_group.get_current_state().joint_state.position)
+        self.move_group.execute(plan2, wait=True)
+        self.move_group.set_start_state_to_current_state()
+        rospy.logwarn("Position list from initial plan")
+        for pnt in plan.joint_trajectory.points:
+            rospy.loginfo(pnt.positions)
+
+
+    def set_plan_state(self, plan, initial_exec_time):
         points = plan.joint_trajectory.points
+        planning_time = genpy.Duration(self.move_group.get_planning_time())
+        prev_point = points[0]
+        current_state = self.move_group.get_current_state()
+        future_state = copy.deepcopy(current_state)
         for point in points:
-            point.
-        new_points = []
+            if point.time_from_start > (planning_time + (rospy.Time.now()-initial_exec_time)):
+                future_state.joint_state.position = list(point.positions) + [0.035,0.035]
+                # future_state.joint_state.velocity = list(point.velocities) + [0,0]
+                rospy.logwarn("Predicted state")
+                rospy.loginfo(future_state.joint_state.position)
+                self.move_group.set_start_state(future_state)
+                return
