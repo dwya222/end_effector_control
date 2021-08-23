@@ -219,16 +219,21 @@ class DemoInterface(object):
         start_point.effort = current_joint_efforts
         end_point = copy.deepcopy(start_point)
         end_point_list = list(end_point.positions)
-        end_point_list[0] += 0.5
-        end_point_list[1] += 0.5
-        end_point_list[2] += 0.5
-        end_point_list[3] += 0.5
-        end_point_list[4] += 0.5
+        end_point_list[0] += 0.25
+        end_point_list[1] += 0.53
+        end_point_list[2] += 0.33
+        end_point_list[3] += 0.78
+        end_point_list[4] += 0.2
         end_point.positions = end_point_list
+        end_point.velocities = [.2, 0, 0, 0, 0, 0, 0, 0, 0]
         end_point.time_from_start = genpy.Duration(2.0)
         points = [start_point, end_point]
+        rospy.logwarn("Points: ")
+        rospy.loginfo(points)
         trajectory.joint_trajectory.points = points
-        self.move_group.execute(trajectory, wait=False)
+        self.move_group.execute(trajectory, wait=True)
+        rospy.logwarn("Current State: ")
+        rospy.loginfo(self.move_group.get_current_state())
 
     def change_traj(self):
         self.go_to_start()
@@ -246,26 +251,39 @@ class DemoInterface(object):
         initial_exec_time = rospy.Time.now()
         self.set_plan_state(plan, initial_exec_time)
         plan2 = self.planning_test(point2)
-        rospy.logwarn("Actual State")
-        rospy.loginfo(self.move_group.get_current_state().joint_state.position)
-        self.move_group.execute(plan2, wait=True)
+        while True:
+            if rospy.Time.now() - initial_exec_time >= self.point_time:
+                rospy.logwarn("Time from start")
+                rospy.loginfo(rospy.Time.now() - initial_exec_time)
+                rospy.logwarn("Point time")
+                rospy.loginfo(self.point_time)
+                rospy.logwarn("Actual State")
+                rospy.loginfo(self.move_group.get_current_state().joint_state.position)
+                self.move_group.execute(plan2, wait=True)
+                break
+        # rospy.logwarn("current state:")
+        # rospy.loginfo(self.move_group.get_current_state().joint_state.position)
+        # rospy.logwarn("current state after execution attempt:")
+        # rospy.loginfo(self.move_group.get_current_state().joint_state.position)
         self.move_group.set_start_state_to_current_state()
-        rospy.logwarn("Position list from initial plan")
-        for pnt in plan.joint_trajectory.points:
-            rospy.loginfo(pnt.positions)
-
+        # rospy.logwarn("Position list from 2nd plan")
+        # for pnt in plan2.joint_trajectory.points:
+        #     rospy.logwarn("Pnt:")
+        #     rospy.loginfo(pnt)
 
     def set_plan_state(self, plan, initial_exec_time):
         points = plan.joint_trajectory.points
         planning_time = genpy.Duration(self.move_group.get_planning_time())
-        prev_point = points[0]
         current_state = self.move_group.get_current_state()
         future_state = copy.deepcopy(current_state)
         for point in points:
-            if point.time_from_start > (planning_time + (rospy.Time.now()-initial_exec_time)):
+            if point.time_from_start > (planning_time + (rospy.Time.now()-initial_exec_time) + genpy.Duration(1.3)):
+                self.point_time = point.time_from_start
+                rospy.loginfo(planning_time + (rospy.Time.now()-initial_exec_time))
                 future_state.joint_state.position = list(point.positions) + [0.035,0.035]
-                # future_state.joint_state.velocity = list(point.velocities) + [0,0]
+                future_state.joint_state.velocity = list(point.velocities) + [0,0]
                 rospy.logwarn("Predicted state")
                 rospy.loginfo(future_state.joint_state.position)
+                rospy.loginfo(point.time_from_start)
                 self.move_group.set_start_state(future_state)
                 return
