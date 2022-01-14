@@ -37,7 +37,7 @@ class DemoInterface(object):
         self.group_name = "panda_arm"
         self.move_group = moveit_commander.MoveGroupCommander(self.group_name)
         self.move_group.set_planner_id("RRTstarkConfigDefault")
-        self.move_group.set_planning_time(1.0)
+        self.move_group.set_planning_time(2.0)
         self.move_group.set_end_effector_link("panda_hand")
         self.display_trajectory_publisher = rospy.Publisher('/move_group/display_planned_path',
                                                    moveit_msgs.msg.DisplayTrajectory,
@@ -102,7 +102,8 @@ class DemoInterface(object):
 
     def follow_point(self, point, grasp=False):
         # Adding object as object so we don't hit it as we approach
-        self.publish_object(point, (0.055,0.055,0.055))
+        # .055 x .065 x .065
+        self.publish_object(point, (0.005,0.065,0.065))
         x = point.x
         y = point.y
         z = point.z
@@ -177,7 +178,7 @@ class DemoInterface(object):
         marker_publisher.display_marker(point_list)
 
     def publish_object(self, point, size, type='box'):
-        rospy.sleep(1)
+        # rospy.sleep(1)
         self.scene.remove_world_object("object")
         object_pose = PoseStamped()
         object_pose.header.frame_id = self.robot.get_planning_frame()
@@ -270,6 +271,19 @@ class DemoInterface(object):
         # for pnt in plan2.joint_trajectory.points:
         #     rospy.logwarn("Pnt:")
         #     rospy.loginfo(pnt)
+
+    def stop_traj(self):
+        self.go_to_start()
+        point = Point()
+        point.x = 0.5
+        point.y = 0.2
+        point.z = 0.6
+        plan = self.planning_test(point)
+
+        self.move_group.execute(plan, wait=False)
+        rospy.sleep(1)
+        self.move_group.stop()
+
 
     def set_plan_state(self, plan, initial_exec_time):
         points = plan.joint_trajectory.points
