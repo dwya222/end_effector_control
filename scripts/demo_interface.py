@@ -37,7 +37,7 @@ class DemoInterface(object):
         self.group_name = "panda_arm"
         self.move_group = moveit_commander.MoveGroupCommander(self.group_name)
         self.move_group.set_planner_id("RRTstarkConfigDefault")
-        self.move_group.set_planning_time(2.0)
+        self.move_group.set_planning_time(5.0)
         self.move_group.set_end_effector_link("panda_hand")
         self.display_trajectory_publisher = rospy.Publisher('/move_group/display_planned_path',
                                                    moveit_msgs.msg.DisplayTrajectory,
@@ -243,6 +243,7 @@ class DemoInterface(object):
         point.y = 0.2
         point.z = 0.6
         plan = self.planning_test(point)
+        rospy.loginfo("Successfully planned to point 1")
         point2 = Point()
         point2.x = 0.4
         point2.y = -0.3
@@ -260,6 +261,7 @@ class DemoInterface(object):
                 rospy.loginfo(self.point_time)
                 rospy.logwarn("Actual State")
                 rospy.loginfo(self.move_group.get_current_state().joint_state.position)
+                plan2_exec_time = rospy.Time.now()
                 self.move_group.execute(plan2, wait=True)
                 break
         # rospy.logwarn("current state:")
@@ -267,6 +269,7 @@ class DemoInterface(object):
         # rospy.logwarn("current state after execution attempt:")
         # rospy.loginfo(self.move_group.get_current_state().joint_state.position)
         self.move_group.set_start_state_to_current_state()
+        return plan, plan2, initial_exec_time, plan2_exec_time
         # rospy.logwarn("Position list from 2nd plan")
         # for pnt in plan2.joint_trajectory.points:
         #     rospy.logwarn("Pnt:")
@@ -276,7 +279,7 @@ class DemoInterface(object):
         self.go_to_start()
         point = Point()
         point.x = 0.5
-        point.y = 0.2
+        point.y = 0.3
         point.z = 0.6
         plan = self.planning_test(point)
 
