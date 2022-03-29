@@ -13,7 +13,8 @@ from franka_gripper.msg import MoveGoal, MoveAction
 import moveit_msgs.msg
 import geometry_msgs.msg
 from geometry_msgs.msg import Point, PoseStamped
-from moveit_msgs.msg import Grasp, GripperTranslation, PlaceLocation, MoveItErrorCodes, RobotTrajectory
+from moveit_msgs.msg import (Grasp, GripperTranslation, PlaceLocation,
+                             MoveItErrorCodes, RobotTrajectory)
 from trajectory_msgs.msg import JointTrajectoryPoint, JointTrajectory
 from sensor_msgs.msg import JointState
 from std_msgs.msg import String, Bool
@@ -39,16 +40,18 @@ class DemoInterface(object):
         self.move_group.set_planner_id("RRTstarkConfigDefault")
         self.move_group.set_planning_time(5.0)
         self.move_group.set_end_effector_link("panda_hand")
-        self.display_trajectory_publisher = rospy.Publisher('/move_group/display_planned_path',
-                                                   moveit_msgs.msg.DisplayTrajectory,
-                                                   queue_size=1)
+        self.display_trajectory_publisher = rospy.Publisher(
+                                            '/move_group/display_planned_path',
+                                            moveit_msgs.msg.DisplayTrajectory,
+                                            queue_size=1)
         self.scene_pub = rospy.Publisher('/move_group/monitored_planning_scene',
                                     moveit_msgs.msg.PlanningScene,
                                     queue_size=1)
         # create client and variable for gripper actions
         self.real = real
         if self.real:
-            gripper_client = actionlib.SimpleActionClient('/franka_gripper/move', MoveAction)
+            gripper_client = actionlib.SimpleActionClient('/franka_gripper/move',
+                                                          MoveAction)
             gripper_client.wait_for_server()
             close_goal = MoveGoal(width = 0.045, speed = 0.08)
             open_goal = MoveGoal(width = 0.08, speed = 0.08)
@@ -56,7 +59,8 @@ class DemoInterface(object):
 
     def all_close(self, goal, actual, tolerance):
         """
-        Convenience method for testing if a list of values are within a tolerance of their counterparts in another list
+        Convenience method for testing if a list of values are within a
+        tolerance of their counterparts in another list
         @param: goal       A list of floats, a Pose or a PoseStamped
         @param: actual     A list of floats, a Pose or a PoseStamped
         @param: tolerance  A float
@@ -70,7 +74,8 @@ class DemoInterface(object):
         elif type(goal) is geometry_msgs.msg.PoseStamped:
             return self.all_close(goal.pose, actual.pose, tolerance)
         elif type(goal) is geometry_msgs.msg.Pose:
-            return self.all_close(pose_to_list(goal), pose_to_list(actual), tolerance)
+            return self.all_close(pose_to_list(goal), pose_to_list(actual),
+                                  tolerance)
         return True
 
     def open_gripper(self, wait=True):
@@ -84,7 +89,6 @@ class DemoInterface(object):
     def go_to_start(self, wait=True):
         move_group = self.move_group
         joint_goal = move_group.get_current_joint_values()
-        rospy.loginfo(joint_goal)
         joint_goal[0] = 0
         joint_goal[1] = -0.785
         joint_goal[2] = 0
@@ -107,7 +111,6 @@ class DemoInterface(object):
         x = point.x
         y = point.y
         z = point.z
-        rospy.loginfo(point)
         pose_goal = geometry_msgs.msg.Pose()
         move_group = self.move_group
         if grasp:
@@ -115,7 +118,8 @@ class DemoInterface(object):
             rpy_rot = R.from_euler('y', theta, degrees=True)
         else:
             theta = self.get_angle(z)
-            rpy_rot = R.from_euler('y', theta, degrees=True) * R.from_euler('x', 180, degrees=True)
+            rpy_rot = (R.from_euler('y', theta, degrees=True) *
+                       R.from_euler('x', 180, degrees=True))
         pose_goal.position.x = x
         pose_goal.position.y = y
         pose_goal.position.z = z
@@ -146,13 +150,16 @@ class DemoInterface(object):
             rpy_rot = R.from_euler('y', theta, degrees=True)
         elif approach=="left":
             theta = 90
-            rpy_rot = R.from_euler('y', theta, degrees=True) * R.from_euler('x', 90, degrees=True)
+            rpy_rot = (R.from_euler('y', theta, degrees=True) *
+                       R.from_euler('x', 90, degrees=True))
         elif approach=="right":
             theta = 90
-            rpy_rot = R.from_euler('y', theta, degrees=True) * R.from_euler('x', -90, degrees=True)
+            rpy_rot = (R.from_euler('y', theta, degrees=True) *
+                       R.from_euler('x', -90, degrees=True))
         elif approach=="back":
             theta = 90
-            rpy_rot = R.from_euler('y', theta, degrees=True) * R.from_euler('x', 180, degrees=True)
+            rpy_rot = (R.from_euler('y', theta, degrees=True) *
+                       R.from_euler('x', 180, degrees=True))
         else:
             rospy.logerr("Invalid approach parameter. Exiting.")
             return
@@ -197,23 +204,28 @@ class DemoInterface(object):
     def listen_for_point(self):
         # while True:
         # time.sleep(1)
-        rospy.Subscriber("/point_command", Point, self.follow_point, queue_size=1)
+        rospy.Subscriber("/point_command", Point, self.follow_point,
+                         queue_size=1)
         rospy.spin()
 
     def exec_traj(self):
         # Always start this test from the starting position
         self.go_to_start()
-        # Setup some local variables to help create RobotTrajectory and JointTrajectoryPoint messages
+        # Setup some local variables to help create RobotTrajectory and
+        # JointTrajectoryPoint messages
         current_state = self.move_group.get_current_state().joint_state
         current_joint_positions = current_state.position
         current_joint_velocities = current_state.velocity
         current_joint_efforts = current_state.effort
         # Create our RobotTrajectory message with the appropriate headers
         trajectory = RobotTrajectory()
-        trajectory.joint_trajectory.header.frame_id = current_state.header.frame_id
+        trajectory.joint_trajectory.header.frame_id = (
+                current_state.header.frame_id)
         trajectory.joint_trajectory.joint_names = current_state.name
-        # Create 2 points that will be in the RobotTrajectory message (normally there will be  a lot more
-        # when these messages are created using move_group.plan() as in the planning_test method in this function
+        # Create 2 points that will be in the RobotTrajectory message
+        # (normally there will be  a lot more
+        # when these messages are created using move_group.plan() as in the
+        # planning_test method in this function
         start_point = JointTrajectoryPoint()
         start_point.positions = current_joint_positions
         start_point.velocities = current_joint_velocities
@@ -255,25 +267,20 @@ class DemoInterface(object):
         plan2 = self.planning_test(point2)
         while True:
             if rospy.Time.now() - initial_exec_time >= self.point_time:
+                # (1) Removal of the following and (2) log statements causes
+                # position mismatch failure due to timing issue
                 rospy.logwarn("Time from start")
                 rospy.loginfo(rospy.Time.now() - initial_exec_time)
                 rospy.logwarn("Point time")
                 rospy.loginfo(self.point_time)
                 rospy.logwarn("Actual State")
-                rospy.loginfo(self.move_group.get_current_state().joint_state.position)
+                rospy.loginfo(
+                        self.move_group.get_current_state().joint_state.position)
                 plan2_exec_time = rospy.Time.now()
                 self.move_group.execute(plan2, wait=True)
                 break
-        # rospy.logwarn("current state:")
-        # rospy.loginfo(self.move_group.get_current_state().joint_state.position)
-        # rospy.logwarn("current state after execution attempt:")
-        # rospy.loginfo(self.move_group.get_current_state().joint_state.position)
         self.move_group.set_start_state_to_current_state()
         return plan, plan2, initial_exec_time, plan2_exec_time
-        # rospy.logwarn("Position list from 2nd plan")
-        # for pnt in plan2.joint_trajectory.points:
-        #     rospy.logwarn("Pnt:")
-        #     rospy.loginfo(pnt)
 
     def stop_traj(self):
         self.go_to_start()
@@ -294,12 +301,18 @@ class DemoInterface(object):
         current_state = self.move_group.get_current_state()
         future_state = copy.deepcopy(current_state)
         for point in points:
-            if point.time_from_start > (planning_time + (rospy.Time.now()-initial_exec_time) + genpy.Duration(1.3)):
+            if point.time_from_start > (planning_time + 
+                    (rospy.Time.now()-initial_exec_time) + genpy.Duration(1.3)):
                 self.point_time = point.time_from_start
-                rospy.loginfo(planning_time + (rospy.Time.now()-initial_exec_time))
-                future_state.joint_state.position = list(point.positions) + [0.035,0.035]
-                future_state.joint_state.velocity = list(point.velocities) + [0,0]
-                rospy.logwarn("Predicted state")
+                # (2) Removal of the log statements within this loop  and (1)
+                # causes position mismatch failure due to timing issue
+                rospy.loginfo(planning_time
+                        + (rospy.Time.now()-initial_exec_time))
+                future_state.joint_state.position = (list(point.positions) +
+                                                     [0.035, 0.035])
+                future_state.joint_state.velocity = (list(point.velocities) +
+                                                     [0.0, 0.0])
+                rospy.loginfo("Predicted state")
                 rospy.loginfo(future_state.joint_state.position)
                 rospy.loginfo(point.time_from_start)
                 self.move_group.set_start_state(future_state)
