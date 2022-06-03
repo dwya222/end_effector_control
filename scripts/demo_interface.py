@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys
 import copy
@@ -69,7 +69,7 @@ class DemoInterface(object):
         all_equal = True
         if type(goal) is list:
             for index in range(len(goal)):
-                if abs(actual[index] - goal[index]) > tolerance:
+                if abs(actual[index] - float(goal[index])) > tolerance:
                     return False
         elif type(goal) is geometry_msgs.msg.PoseStamped:
             return self.all_close(goal.pose, actual.pose, tolerance)
@@ -120,14 +120,14 @@ class DemoInterface(object):
             theta = self.get_angle(z)
             rpy_rot = (R.from_euler('y', theta, degrees=True) *
                        R.from_euler('x', 180, degrees=True))
-        pose_goal.position.x = x
-        pose_goal.position.y = y
-        pose_goal.position.z = z
+        pose_goal.position.x = float(x)
+        pose_goal.position.y = float(y)
+        pose_goal.position.z = float(z)
         quat = rpy_rot.as_quat()
-        pose_goal.orientation.x = quat[0]
-        pose_goal.orientation.y = quat[1]
-        pose_goal.orientation.z = quat[2]
-        pose_goal.orientation.w = quat[3]
+        pose_goal.orientation.x = float(quat[0])
+        pose_goal.orientation.y = float(quat[1])
+        pose_goal.orientation.z = float(quat[2])
+        pose_goal.orientation.w = float(quat[3])
         current_pose = move_group.get_current_pose().pose
         if self.all_close(pose_goal, current_pose, 0.03):
             return
@@ -172,6 +172,7 @@ class DemoInterface(object):
         pose_goal.orientation.z = quat[2]
         pose_goal.orientation.w = quat[3]
         move_group.set_pose_target(pose_goal)
+        # Note returns a tuple: (Success, Trajectory Msg, Planning Time, Error Code)
         return move_group.plan()
 
     def get_angle(self, height):
@@ -189,9 +190,9 @@ class DemoInterface(object):
         self.scene.remove_world_object("object")
         object_pose = PoseStamped()
         object_pose.header.frame_id = self.robot.get_planning_frame()
-        object_pose.pose.position.x = point.x
-        object_pose.pose.position.y = point.y
-        object_pose.pose.position.z = point.z
+        object_pose.pose.position.x = float(point.x)
+        object_pose.pose.position.y = float(point.y)
+        object_pose.pose.position.z = float(point.z)
         object_pose.pose.orientation.x = 0.0
         object_pose.pose.orientation.y = 0.0
         object_pose.pose.orientation.z = 0.0
@@ -254,7 +255,8 @@ class DemoInterface(object):
         point.x = 0.5
         point.y = 0.2
         point.z = 0.6
-        plan = self.planning_test(point)
+        (success, plan, planning_time, error_code) = (
+                self.planning_test(point))
         rospy.loginfo("Successfully planned to point 1")
         point2 = Point()
         point2.x = 0.4
@@ -264,7 +266,8 @@ class DemoInterface(object):
         self.move_group.execute(plan, wait=False)
         initial_exec_time = rospy.Time.now()
         self.set_plan_state(plan, initial_exec_time)
-        plan2 = self.planning_test(point2)
+        (success2, plan2, planning_time2, error_code2) = (
+                self.planning_test(point2))
         while True:
             if rospy.Time.now() - initial_exec_time >= self.point_time:
                 # (1) Removal of the following and (2) log statements causes
@@ -288,7 +291,7 @@ class DemoInterface(object):
         point.x = 0.5
         point.y = 0.3
         point.z = 0.6
-        plan = self.planning_test(point)
+        (success, plan, planning_time, error_code) = self.planning_test(point)
 
         self.move_group.execute(plan, wait=False)
         rospy.sleep(1)
@@ -301,7 +304,7 @@ class DemoInterface(object):
         current_state = self.move_group.get_current_state()
         future_state = copy.deepcopy(current_state)
         for point in points:
-            if point.time_from_start > (planning_time + 
+            if point.time_from_start > (planning_time +
                     (rospy.Time.now()-initial_exec_time) + genpy.Duration(1.3)):
                 self.point_time = point.time_from_start
                 # (2) Removal of the log statements within this loop  and (1)

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 Need to figure out how to turn off rviz.
@@ -12,13 +12,13 @@ if __name__ == "__main__":
     d = DemoInterface()
     # will generate points later but for now start with one point
     point = Point()
-    point.x = 0.5
+    point.x = 0.4
     point.y = 0.2
     point.z = 0.6
 
     # next plan to point
-    plan = d.planning_test(point, approach="follow")
-    
+    (success, plan, planning_time, error_code) = d.planning_test(
+            point, approach="front")
     # now save the plan as pickle/json
     json_plan = json_message_converter.convert_ros_message_to_json(plan)
     with open('./trajectory_samples/plan.json', 'w') as f:

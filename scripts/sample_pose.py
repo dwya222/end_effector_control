@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import numpy as np
 from scipy.spatial.transform import Rotation as R
@@ -13,7 +13,7 @@ def main():
   mover = DemoInterface()
   np.set_printoptions(suppress=True)
   while True:
-       raw_input("Type enter to see next pose \n")
+       input("Type enter to see next pose \n")
        current_pose = mover.move_group.get_current_pose()
        current_joint_values = mover.move_group.get_current_joint_values()
        print("joint state info:")

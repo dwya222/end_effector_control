@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from demo_interface import DemoInterface
 from geometry_msgs.msg import Point, PoseStamped
@@ -72,7 +72,7 @@ if __name__ == "__main__":
                      3: np.array([0.15, 0.5, -0.75]), 4: np.array([-0.4, 0.375, -0.75]),
                      5: np.array([-0.55, 0.75, -0.75]), 6: np.array([0.15, 1.0, -0.75]),
                      7: np.array([-0.4, 1.125, -0.75])}
-    origin = position_dict[position]
+    origin = position_dict[int(position)]
     num_cups=12
     iter=5
 

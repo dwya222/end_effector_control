@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from demo_interface import DemoInterface
 import rospy
@@ -12,7 +12,7 @@ for i in np.arange(0,len(joint_vals)):
     joint_vals = d.move_group.get_current_joint_values()
     joint_vals[i] = joint_vals[i] + 0.5
     d.move_group.set_joint_value_target(joint_vals)
-    plan = d.move_group.plan()
+    (success, plan, time, error) = d.move_group.plan()
     d.move_group.execute(plan,wait=False)
     rospy.sleep(1)
     d.move_group.stop()

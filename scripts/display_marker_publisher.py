@@ -1,10 +1,11 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import roslib; roslib.load_manifest('visualization_marker_tutorials')
 from visualization_msgs.msg import Marker
 from visualization_msgs.msg import MarkerArray
 import rospy
 import math
+from geometry_msgs.msg import Point
 
 class marker_pub(object):
     def __init__(self, node_init=False):
@@ -54,4 +55,12 @@ class marker_pub(object):
 
 if __name__=='__main__':
     marker_pub = marker_pub(node_init=True)
-    marker_pub.display_marker([.6,0,.4])
+    point1 = Point()
+    point2 = Point()
+    point1.x = .6
+    point1.y = 0
+    point1.z = .4
+    point2.x = .5
+    point2.y = .5
+    point2.z = .5
+    marker_pub.display_marker([point1,point2])
