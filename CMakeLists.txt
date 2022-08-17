@@ -11,6 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  actionlib
+  control_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -133,9 +135,10 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(pick_place src/pick_place.cpp)
-# target_link_libraries(pick_place ${catkin_LIBRARIES} ${Boost_LIBRARIES})
-# install(TARGETS pick_place DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+add_executable(simple_trajectory src/simple_trajectory.cpp)
+target_link_libraries(simple_trajectory ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+## add_dependencies(simple_trajectory ${action_lib
+## install(TARGETS simple_trajectory DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
