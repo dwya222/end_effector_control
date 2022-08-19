@@ -13,10 +13,26 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   actionlib
   control_msgs
+  interactive_markers
+  moveit_core
+  moveit_ros_planning
+  moveit_ros_planning_interface
+  moveit_ros_perception
+  rviz_visual_tools
+  moveit_visual_tools
+  pluginlib
+  geometric_shapes
+  pcl_ros
+  pcl_conversions
+  rosbag
+  tf2_ros
+  tf2_eigen
+  tf2_geometry_msgs
 )
 
 ## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
+find_package(Eigen3 REQUIRED)
+find_package(Boost REQUIRED system filesystem date_time thread)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -105,10 +121,15 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES testing
-#  CATKIN_DEPENDS roscpp rospy std_msgs
-#  DEPENDS system_lib
+  LIBRARIES
+  CATKIN_DEPENDS
+    moveit_core
+    moveit_visual_tools
+    moveit_ros_planning_interface
+    interactive_markers
+    tf2_geometry_msgs
+  DEPENDS
+    EIGEN3
 )
 
 ###########
@@ -137,6 +158,8 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(simple_trajectory src/simple_trajectory.cpp)
 target_link_libraries(simple_trajectory ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+add_executable(control_stop_test src/control_stop_test.cpp)
+target_link_libraries(control_stop_test ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 ## add_dependencies(simple_trajectory ${action_lib
 ## install(TARGETS simple_trajectory DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
