@@ -38,7 +38,7 @@ class DemoInterface(object):
         self.group_name = "panda_arm"
         self.move_group = moveit_commander.MoveGroupCommander(self.group_name)
         self.move_group.set_planner_id("RRTstarkConfigDefault")
-        self.move_group.set_planning_time(5.0)
+        self.set_planning_time(5.0)
         self.move_group.set_end_effector_link("panda_hand")
         self.display_trajectory_publisher = rospy.Publisher(
                                             '/move_group/display_planned_path',
@@ -55,6 +55,12 @@ class DemoInterface(object):
             gripper_client.wait_for_server()
             close_goal = MoveGoal(width = 0.045, speed = 0.08)
             open_goal = MoveGoal(width = 0.08, speed = 0.08)
+
+    def set_planning_time(self, planning_time):
+        self.move_group.set_planning_time(planning_time)
+
+    def get_planning_time(self):
+        return self.move_group.get_planning_time()
 
 
     def all_close(self, goal, actual, tolerance):
@@ -105,9 +111,9 @@ class DemoInterface(object):
         return self.all_close(joint_goal, current_joints, 0.01)
 
     def follow_point(self, point, grasp=False):
-        # Adding object as object so we don't hit it as we approach
+        # Adding object as obstacle so we don't hit it as we approach
         # .055 x .065 x .065
-        self.publish_object(point, (0.005,0.065,0.065))
+        self.publish_object("goal", point, (0.005,0.065,0.065))
         x = point.x
         y = point.y
         z = point.z
@@ -138,8 +144,8 @@ class DemoInterface(object):
         return self.all_close(pose_goal, current_pose, 0.01)
 
     def planning_test(self, point, approach="front"):
-        # Adding object as object so we don't hit it as we approach
-        self.publish_object(point, 0.0275, type='sphere')
+        # Adding object as obstacle so we don't hit it as we approach
+        self.publish_object("goal", point, 0.0275, type='sphere')
         x = point.x
         y = point.y
         z = point.z
@@ -185,9 +191,9 @@ class DemoInterface(object):
         marker_publisher = marker_pub()
         marker_publisher.display_marker(point_list)
 
-    def publish_object(self, point, size, type='box'):
-        # rospy.sleep(1)
-        self.scene.remove_world_object("object")
+    def publish_object(self, name, point, size, type='box'):
+        # May need to sleep for a second before using this after initializing Demo
+        self.remove_object(name)
         object_pose = PoseStamped()
         object_pose.header.frame_id = self.robot.get_planning_frame()
         object_pose.pose.position.x = float(point.x)
@@ -198,9 +204,13 @@ class DemoInterface(object):
         object_pose.pose.orientation.z = 0.0
         object_pose.pose.orientation.w = 1.0
         if type == 'box':
-            self.scene.add_box("object", object_pose, size=size)
+            self.scene.add_box(name, object_pose, size=size)
         else:
-            self.scene.add_sphere("object", object_pose, radius=size)
+            self.scene.add_sphere(name, object_pose, radius=size)
+
+    def remove_object(self, name):
+        self.scene.remove_world_object(name)
+
 
     def listen_for_point(self):
         # while True:
