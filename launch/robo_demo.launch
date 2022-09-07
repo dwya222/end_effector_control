@@ -1,0 +1,10 @@
+<?xml version="1.0" ?>
+<launch>
+  <include file="$(find panda_moveit_config)/launch/panda_control_moveit_rviz.launch">
+    <arg name="robot_ip" default="172.16.0.2"/>
+    <arg name="load_gripper" default="true"/>
+    <arg name="setup" default="staged"/>
+  </include>
+  <node pkg="end_effector_control" type="follow_point_subscriber.py" name="follow_point_node"/>
+  <node pkg="camera" type="main.py" name="camera_node"/>
+</launch>
