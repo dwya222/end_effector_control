@@ -13,6 +13,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <ros/serialization.h>
 
 
 class RobotArm
@@ -79,6 +80,11 @@ public:
     return current_state.satisfiesBounds(kinematic_model_ptr->getJointModelGroup(group));
   }
 
+  bool satisfiesConstraints()
+  {
+    return psm_ptr->getPlanningScene()->isStateConstrained(current_state, *kinematic_constraint_set_ptr, false);
+  }
+
   bool isStateValid()
   {
     /* return planning_scene_ptr->isStateValid(current_state, *kinematic_constraint_set_ptr, group); */
@@ -111,6 +117,46 @@ public:
     joint_position_pub.publish(robot_state_msg.joint_state);
   }
 
+  void addJointContstraints()
+  {
+    std::vector<moveit_msgs::JointConstraint> jc_vec;
+    moveit_msgs::JointConstraint jc;
+    jc.joint_name = kinematic_model_ptr->getJointModelGroup(group)->getActiveJointModelNames().front();
+    jc.position = 0.0;
+    jc.tolerance_above = 1.0;
+    jc.tolerance_below = 1.0;
+    jc_vec.push_back(jc);
+    kinematic_constraint_set_ptr->add(jc_vec);
+  }
+
+  void outputJointConstraints()
+  {
+    kinematic_constraint_set_ptr->print(std::cout);
+  }
+
+  void runValidStateTest()
+  {
+    char key = ' ';
+    while (ros::ok())
+    {
+      std::cout << "Press q to quit or any other key to run next random state\n";
+      std::cin >> key;
+      if (key == 'q')
+        break;
+      else if (key == 's')
+        setStartState();
+      else if (key == 'r')
+        setCurrentStateRandom();
+      // else just check same state collision again
+      ROS_INFO_STREAM("self collision: " << isSelfCollision());
+      ROS_INFO_STREAM("environment collision: " << isEnvCollision());
+      ROS_INFO_STREAM("collision: " << isCollision());
+      ROS_INFO_STREAM("satisfies bounds: " << satisfiesBounds());
+      ROS_INFO_STREAM("satisfies constraints: " << satisfiesConstraints());
+      ROS_INFO_STREAM("valid: " << isStateValid());
+    }
+  }
+
 };
 
 int main(int argc, char** argv)
@@ -121,24 +167,7 @@ int main(int argc, char** argv)
   spinner.start();
 
   RobotArm robot_arm(nh);
-
-  char key = ' ';
-  while (ros::ok())
-  {
-    std::cout << "Press q to quit or any other key to run next random state\n";
-    std::cin >> key;
-    if (key == 'q')
-      break;
-    else if (key == 's')
-      robot_arm.setStartState();
-    else
-      robot_arm.setCurrentStateRandom();
-    ROS_INFO_STREAM("self collision: " << robot_arm.isSelfCollision());
-    ROS_INFO_STREAM("environment collision: " << robot_arm.isEnvCollision());
-    ROS_INFO_STREAM("collision: " << robot_arm.isCollision());
-    ROS_INFO_STREAM("within bounds: " << robot_arm.satisfiesBounds());
-    ROS_INFO_STREAM("valid: " << robot_arm.isStateValid());
-  }
-
-
+  robot_arm.addJointContstraints();
+  robot_arm.outputJointConstraints();
+  robot_arm.runValidStateTest();
 }
