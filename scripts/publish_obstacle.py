@@ -10,10 +10,10 @@ DEBUG = False
 def requestPoint():
     if DEBUG:
         print("Where would you like to publish an obstacle?")
-        x = input("x: ")
-        y = input("y: ")
-        z = input("z: ")
-        r = input("radius: ")
+        x = float(input("x: "))
+        y = float(input("y: "))
+        z = float(input("z: "))
+        r = float(input("radius: "))
     else:
         (x, y, z, r) = (0.5, -0.4, 0.6, 0.25)
     return (pointMsg(x, y, z), r)
@@ -35,4 +35,5 @@ if __name__ == "__main__":
 
     # Add obstacle to scene
     rospy.sleep(1.0) # Need to sleep for a second to load up planning scene
+    remove_obstacle()
     d.publish_object("obstacle", point, radius, type='sphere')

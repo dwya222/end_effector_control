@@ -191,6 +191,23 @@ class DemoInterface(object):
         marker_publisher = marker_pub()
         marker_publisher.display_marker(point_list)
 
+    def publish_object_manual(self, name, x, y, z, size, type='box'):
+        # May need to sleep for a second before using this after initializing Demo
+        object_pose = PoseStamped()
+        object_pose.header.frame_id = self.robot.get_planning_frame()
+        object_pose.pose.position.x = float(x)
+        object_pose.pose.position.y = float(y)
+        object_pose.pose.position.z = float(z)
+        object_pose.pose.orientation.x = 0.0
+        object_pose.pose.orientation.y = 0.0
+        object_pose.pose.orientation.z = 0.0
+        object_pose.pose.orientation.w = 1.0
+        if type == 'box':
+            self.scene.add_box(name, object_pose, size=size)
+        else:
+            self.scene.add_sphere(name, object_pose, radius=size)
+
+
     def publish_object(self, name, point, size, type='box'):
         # May need to sleep for a second before using this after initializing Demo
         self.remove_object(name)
