@@ -18,6 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_ros_planning
   moveit_ros_planning_interface
   moveit_ros_perception
+  moveit_planners_ompl
   rviz_visual_tools
   moveit_visual_tools
   pluginlib
@@ -162,6 +163,10 @@ add_executable(control_stop_test src/control_stop_test.cpp)
 target_link_libraries(control_stop_test ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 add_executable(collision_check_test src/collision_check_test.cpp)
 target_link_libraries(collision_check_test ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+add_executable(create_goal_test src/create_goal_test.cpp)
+target_link_libraries(create_goal_test ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+add_executable(new_goal_publisher src/new_goal_publisher.cpp)
+target_link_libraries(new_goal_publisher ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 ## add_dependencies(simple_trajectory ${action_lib
 ## install(TARGETS simple_trajectory DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 

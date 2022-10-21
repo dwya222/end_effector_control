@@ -5,7 +5,7 @@ from demo_interface import DemoInterface
 from geometry_msgs.msg import Point
 import threading as th
 
-DEBUG = False
+DEBUG = True
 
 def requestPoint():
     if DEBUG:
@@ -35,5 +35,5 @@ if __name__ == "__main__":
 
     # Add obstacle to scene
     rospy.sleep(1.0) # Need to sleep for a second to load up planning scene
-    remove_obstacle()
+    remove_obstacle(d)
     d.publish_object("obstacle", point, radius, type='sphere')

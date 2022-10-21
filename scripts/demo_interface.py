@@ -92,23 +92,24 @@ class DemoInterface(object):
         gripper_client.send_goal(close_goal)
         gripper_client.wait_for_result(rospy.Duration.from_sec(5.0))
 
-    def go_to_start(self, wait=True):
-        move_group = self.move_group
-        joint_goal = move_group.get_current_joint_values()
-        joint_goal[0] = 0
-        joint_goal[1] = -0.785
-        joint_goal[2] = 0
-        joint_goal[3] = -2.356
-        joint_goal[4] = 0
-        joint_goal[5] = 1.571
-        joint_goal[6] = 0.785
-        # setting wait = False allows for dynamic trajectory planning
-        move_group.go(joint_goal, wait)
-        move_group.stop()
-        if self.real:
-            self.open_gripper()
-        current_joints = move_group.get_current_joint_values()
+    def plan_to_joint_goal(self, joint_values, wait=True):
+        self.move_group.set_joint_value_target(joint_values)
+        # Note returns a tuple: (Success, Trajectory Msg, Planning Time, Error Code)
+        return self.move_group.plan()
+
+    def go_to_joint_goal(self, joint_values, wait=True):
+        joint_goal = self.move_group.get_current_joint_values()
+        for i in range(7):
+            joint_goal[i] = joint_values[i]
+        self.move_group.go(joint_goal, wait)
+        self.move_group.stop()
+        current_joints = self.move_group.get_current_joint_values()
         return self.all_close(joint_goal, current_joints, 0.01)
+
+    def go_to_start(self, wait=True):
+        joint_goal = self.move_group.get_current_joint_values()
+        joint_values = [0, -0.785, 0, -2.356, 0, 1.571, 0.785]
+        return self.go_to_joint_goal(joint_values, wait)
 
     def follow_point(self, point, grasp=False):
         # Adding object as obstacle so we don't hit it as we approach
@@ -208,9 +209,10 @@ class DemoInterface(object):
             self.scene.add_sphere(name, object_pose, radius=size)
 
 
-    def publish_object(self, name, point, size, type='box'):
+    def publish_object(self, name, point, size, type='box', remove=False):
         # May need to sleep for a second before using this after initializing Demo
-        self.remove_object(name)
+        if remove:
+            self.remove_object(name)
         object_pose = PoseStamped()
         object_pose.header.frame_id = self.robot.get_planning_frame()
         object_pose.pose.position.x = float(point.x)
@@ -292,17 +294,17 @@ class DemoInterface(object):
 
         self.move_group.execute(plan, wait=False)
         initial_exec_time = rospy.Time.now()
-        self.set_plan_state(plan, initial_exec_time)
+        point_time = self.set_plan_state(plan, initial_exec_time)
         (success2, plan2, planning_time2, error_code2) = (
                 self.planning_test(point2))
         while True:
-            if rospy.Time.now() - initial_exec_time >= self.point_time:
+            if rospy.Time.now() - initial_exec_time >= point_time:
                 # (1) Removal of the following and (2) log statements causes
                 # position mismatch failure due to timing issue
                 rospy.logwarn("Time from start")
                 rospy.loginfo(rospy.Time.now() - initial_exec_time)
                 rospy.logwarn("Point time")
-                rospy.loginfo(self.point_time)
+                rospy.loginfo(point_time)
                 rospy.logwarn("Actual State")
                 rospy.loginfo(
                         self.move_group.get_current_state().joint_state.position)
@@ -333,7 +335,7 @@ class DemoInterface(object):
         for point in points:
             if point.time_from_start > (planning_time +
                     (rospy.Time.now()-initial_exec_time) + genpy.Duration(1.3)):
-                self.point_time = point.time_from_start
+                point_time = point.time_from_start
                 # (2) Removal of the log statements within this loop  and (1)
                 # causes position mismatch failure due to timing issue
                 rospy.loginfo(planning_time
@@ -346,4 +348,4 @@ class DemoInterface(object):
                 rospy.loginfo(future_state.joint_state.position)
                 rospy.loginfo(point.time_from_start)
                 self.move_group.set_start_state(future_state)
-                return
+                return point_time

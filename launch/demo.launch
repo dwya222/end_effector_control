@@ -1,5 +1,6 @@
 <launch>
 
+  <arg name="launch_prefix" default="xterm -fa 'Monospace' -fs 10 -e gdb -ex run --args"/>
   <!-- By default, we do not start a database (it can be large) -->
   <arg name="db" default="false" />
   <!-- Allow user to specify database location -->
@@ -21,6 +22,7 @@
   -->
   <arg name="rviz_tutorial" default="false" />
   <arg name="use_gui" default="false" />
+  <arg name="run_rviz" default="true" />
 
   <!-- Load the URDF, SRDF and other .yaml configuration files on the param server -->
   <include file="$(find end_effector_control)/launch/planning_context.launch">
@@ -48,10 +50,12 @@
     <arg name="info" value="true"/>
     <arg name="debug" value="$(arg debug)"/>
     <arg name="pipeline" value="$(arg pipeline)"  />
+    <!-- <arg name="dwy_launch_prefix" value="$(arg launch_prefix)"/> -->
+    <arg name="dwy_launch_prefix" value=""/>
   </include>
 
   <!-- Run Rviz -->
-  <include file="$(find panda_moveit_config)/launch/moveit_rviz.launch">
+  <include file="$(find panda_moveit_config)/launch/moveit_rviz.launch" if="$(arg run_rviz)">
     <arg name="rviz_tutorial" value="$(arg rviz_tutorial)"/>
     <arg name="debug" value="$(arg debug)"/>
   </include>

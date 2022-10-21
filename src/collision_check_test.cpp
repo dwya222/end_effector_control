@@ -21,7 +21,6 @@ class RobotArm
 private:
   robot_model_loader::RobotModelLoaderPtr rm_loader_ptr;
   const robot_model::RobotModelPtr& kinematic_model_ptr;
-  //planning_scene::PlanningScenePtr planning_scene_ptr;
   planning_scene_monitor::PlanningSceneMonitorPtr psm_ptr;
   kinematic_constraints::KinematicConstraintSetPtr kinematic_constraint_set_ptr;
   const std::string group;
@@ -46,16 +45,11 @@ public:
     joint_position_pub = nh_.advertise<sensor_msgs::JointState>("/joint_states", 100);
   }
 
-  /* ~RobotArm() */
-  /* { */
-  /*   free(memory_); */
-  /* } */
 
   bool isSelfCollision()
   {
     collision_detection::CollisionRequest collision_request;
     collision_detection::CollisionResult collision_result;
-    // planning_scene_ptr->checkSelfCollision(collision_request, collision_result);
     psm_ptr->getPlanningScene()->checkSelfCollision(collision_request, collision_result);
     return collision_result.collision;
   }
@@ -64,8 +58,8 @@ public:
   {
     collision_detection::CollisionRequest collision_request;
     collision_detection::CollisionResult collision_result;
-    // planning_scene_ptr->checkCollision(collision_request, collision_result, current_state);
-    psm_ptr->getPlanningScene()->checkCollision(collision_request, collision_result, current_state);
+    /* psm_ptr->getPlanningScene()->checkCollision(collision_request, collision_result, current_state); */
+    planning_scene_monitor::LockedPlanningSceneRO(psm_ptr)->checkCollision(collision_request, collision_result, current_state);
     return collision_result.collision;
   }
 
@@ -87,7 +81,6 @@ public:
 
   bool isStateValid()
   {
-    /* return planning_scene_ptr->isStateValid(current_state, *kinematic_constraint_set_ptr, group); */
     return psm_ptr->getPlanningScene()->isStateValid(current_state, *kinematic_constraint_set_ptr, group);
   }
 
@@ -134,12 +127,14 @@ public:
     kinematic_constraint_set_ptr->print(std::cout);
   }
 
-  void runValidStateTest()
+  void validTestInterface()
   {
     char key = ' ';
+    // Doesn't make a difference here b/c we only read from the planing scene in this node
+    /* planning_scene_monitor::LockedPlanningSceneRO lscene(psm_ptr); */
     while (ros::ok())
     {
-      std::cout << "Press q to quit or any other key to run next random state\n";
+      std::cout << "Enter q to quit, r for another random state or any other key to re-run for state\n";
       std::cin >> key;
       if (key == 'q')
         break;
@@ -157,6 +152,20 @@ public:
     }
   }
 
+  void collisionCheckLoop()
+  {
+    bool current_collision = isCollision();
+    while (ros::ok())
+    {
+      /* ROS_INFO_STREAM_THROTTLE(1.0, "Current collision status: " << current_collision); */
+      if (current_collision != isCollision())
+      {
+        ROS_INFO_STREAM("Collision state changed to: " << isCollision());
+        current_collision = isCollision();
+      }
+    }
+  }
+
 };
 
 int main(int argc, char** argv)
@@ -169,5 +178,6 @@ int main(int argc, char** argv)
   RobotArm robot_arm(nh);
   robot_arm.addJointContstraints();
   robot_arm.outputJointConstraints();
-  robot_arm.runValidStateTest();
+  /* robot_arm.validTestInterface(); */
+  robot_arm.collisionCheckLoop();
 }
