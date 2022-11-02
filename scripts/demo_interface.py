@@ -38,7 +38,7 @@ class DemoInterface(object):
         self.group_name = "panda_arm"
         self.move_group = moveit_commander.MoveGroupCommander(self.group_name)
         self.move_group.set_planner_id("RRTstarkConfigDefault")
-        self.set_planning_time(5.0)
+        self.set_planning_time(2.0)
         self.move_group.set_end_effector_link("panda_hand")
         self.display_trajectory_publisher = rospy.Publisher(
                                             '/move_group/display_planned_path',
@@ -53,7 +53,7 @@ class DemoInterface(object):
             gripper_client = actionlib.SimpleActionClient('/franka_gripper/move',
                                                           MoveAction)
             gripper_client.wait_for_server()
-            close_goal = MoveGoal(width = 0.045, speed = 0.08)
+            close_goal = MoveGoal(width = 0.054, speed = 0.08)
             open_goal = MoveGoal(width = 0.08, speed = 0.08)
 
     def set_planning_time(self, planning_time):
@@ -61,7 +61,6 @@ class DemoInterface(object):
 
     def get_planning_time(self):
         return self.move_group.get_planning_time()
-
 
     def all_close(self, goal, actual, tolerance):
         """
@@ -114,7 +113,7 @@ class DemoInterface(object):
     def follow_point(self, point, grasp=False):
         # Adding object as obstacle so we don't hit it as we approach
         # .055 x .065 x .065
-        self.publish_object("goal", point, (0.005,0.065,0.065))
+        self.publish_object("goal", point, (0.065,0.065,0.065))
         x = point.x
         y = point.y
         z = point.z
@@ -125,7 +124,7 @@ class DemoInterface(object):
             rpy_rot = R.from_euler('y', theta, degrees=True)
         else:
             theta = self.get_angle(z)
-            rpy_rot = (R.from_euler('y', theta, degrees=True) *
+            rpy_rot = (R.from_euler('y', 0, degrees=True) *
                        R.from_euler('x', 180, degrees=True))
         pose_goal.position.x = float(x)
         pose_goal.position.y = float(y)
@@ -215,7 +214,8 @@ class DemoInterface(object):
             self.remove_object(name)
         object_pose = PoseStamped()
         object_pose.header.frame_id = self.robot.get_planning_frame()
-        object_pose.pose.position.x = float(point.x)
+        # Add x offset as April tag point detection is at the front of box
+        object_pose.pose.position.x = float(point.x + 0.02)
         object_pose.pose.position.y = float(point.y)
         object_pose.pose.position.z = float(point.z)
         object_pose.pose.orientation.x = 0.0
@@ -229,7 +229,6 @@ class DemoInterface(object):
 
     def remove_object(self, name):
         self.scene.remove_world_object(name)
-
 
     def listen_for_point(self):
         # while True:
