@@ -4,7 +4,7 @@ import rospy
 from demo_interface import DemoInterface
 from geometry_msgs.msg import Point
 
-DEBUG = False
+DEBUG = True
 
 def main():
   mover = DemoInterface()
@@ -14,12 +14,13 @@ def main():
   y = 'y'
   while not rospy.is_shutdown():
       if DEBUG:
-          point_msg.x = input("Enter x position of point (or start): ")
-          if point_msg.x=="start":
+          init = input("Enter x position of point (or start): ")
+          if init=="start":
               mover.go_to_start()
           else:
-              point_msg.y = input("Enter y position of point: ")
-              point_msg.z = input("Enter z position of point: ")
+              point_msg.x = float(init)
+              point_msg.y = float(input("Enter y position of point: "))
+              point_msg.z = float(input("Enter z position of point: "))
               mover.planning_test(point_msg)
       else:
           input("Press enter to plan to default point (0.5, -0.4, 0.6)")

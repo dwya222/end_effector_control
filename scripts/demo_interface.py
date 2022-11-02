@@ -146,15 +146,15 @@ class DemoInterface(object):
         move_group.clear_pose_targets()
         return self.all_close(pose_goal, current_pose, 0.01)
 
-    def planning_test(self, point, approach="front"):
+    def planning_test(self, point, approach="top"):
         # Adding object as obstacle so we don't hit it as we approach
         self.publish_object("goal", point, 0.0275, type='sphere')
-        x = point.x
-        y = point.y
-        z = point.z
         pose_goal = geometry_msgs.msg.Pose()
         move_group = self.move_group
-        if approach=="front":
+        if approach=="top":
+            rpy_rot = (R.from_euler('y', 0, degrees=True) *
+                       R.from_euler('x', 180, degrees=True))
+        elif approach=="front":
             theta = 90
             rpy_rot = R.from_euler('y', theta, degrees=True)
         elif approach=="left":
@@ -172,9 +172,9 @@ class DemoInterface(object):
         else:
             rospy.logerr("Invalid approach parameter. Exiting.")
             return
-        pose_goal.position.x = x
-        pose_goal.position.y = y
-        pose_goal.position.z = z
+        pose_goal.position.x = point.x
+        pose_goal.position.y = point.y
+        pose_goal.position.z = point.z
         quat = rpy_rot.as_quat()
         pose_goal.orientation.x = quat[0]
         pose_goal.orientation.y = quat[1]
@@ -218,7 +218,7 @@ class DemoInterface(object):
         object_pose = PoseStamped()
         object_pose.header.frame_id = self.robot.get_planning_frame()
         # Add x offset as April tag point detection is at the front of box
-        object_pose.pose.position.x = float(point.x + 0.02)
+        object_pose.pose.position.x = float(point.x) + 0.02
         object_pose.pose.position.y = float(point.y)
         object_pose.pose.position.z = float(point.z)
         object_pose.pose.orientation.x = 0.0

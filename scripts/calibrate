@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+
+import cvxpy as cp
+import json
+import numpy as np
+import os
+import yaml
+
+import rospy
+import rospkg
+
+from demo_interface import DemoInterface
+from geometry_msgs.msg import Point
+
+JOINT_POSITION_SAMPLES_DIR = "./calibration_joint_position_samples"
+
+
+class RoboDemoCalibrator:
+    def __init__(self):
+        self.mover = DemoInterface()
+        self.joint_position_samples = self.get_joint_position_samples(JOINT_POSITION_SAMPLES_DIR)
+
+    def get_joint_position_samples(self, joint_position_samples_dir):
+        joint_position_samples = []
+        for joint_position_sample in sorted(os.listdir(joint_position_samples_dir)):
+            with open(os.path.join(joint_position_samples_dir, joint_position_sample)) as f:
+                joint_position_samples.append(yaml.safe_load(f))
+        return joint_position_samples
+
+    def calibrate(self, sample_data=None):
+        if sample_data is None:
+            sample_data = self.collect_sample_data()
+            # Save this just so we don't have to do it all over again if we get an error later
+            with open('save_sample_data.json', 'w') as out_file:
+                json.dump(sample_data, out_file)
+        (X, Y) = self.convert_dict_to_arrays(sample_data)
+        (A, b) = self.generate_model(X, Y)
+        self.save_model(A, b)
+
+# TODO: need to align world frame axes for urdf vs observed data. i.e. +x in
+# observed frame may equate to -x in the urdf frame. THIS WILL THROW THE WHOLE
+# MODEL OFF IF NOT CONSIDERED (visually analyze data after collected)
+    def collect_sample_data(self):
+        positions_dict = {"actual_position": [],
+                          "detected_position": []}
+        for joint_positions in self.joint_position_samples:
+            self.mover.go_to_joint_goal(joint_positions, wait=True)
+            actual_target_pose = self.mover.move_group.get_current_pose(end_effector_link="panda_link9")
+            actual_target_pos = actual_target_pose.position
+            detected_target_pos = rospy.wait_for_message("/point_command", Point)
+            positions_dict["actual_position"].append(actual_target_pos)
+            positions_dict["detected_position"].append(detected_target_pos)
+
+    def convert_dict_to_arrays(self, sample_data):
+        """
+        returns:
+            X (numpy array): observed data of size m x n where m is 3 (x, y, z)
+                and n is number of datapoints.
+            Y (numpy array): urdf (ground truth) data of size m x n where m is
+                3 (x, y, z) and n is number of datapoints.
+        """
+        n = len(sample_data["actual_position"])
+        X = np.empty((3,n))
+        Y = np.empty((3,n))
+        for i in range(n):
+            X[0][i] = sample_data["actual_position"][i].x
+            X[1][i] = sample_data["actual_position"][i].y
+            X[2][i] = sample_data["actual_position"][i].z
+            Y[0][i] = sample_data["detected_position"][i].x
+            Y[1][i] = sample_data["detected_position"][i].y
+            Y[2][i] = sample_data["detected_position"][i].z
+        return (X, Y)
+
+    def generate_model(self, X, Y):
+        """
+        inputs:
+            X (numpy array): Observed target position data from camera
+            Y (numpy array): Actual target position data from urdf
+        """
+        A = cp.Varible((3,3))
+        b = cp.Varible((3,1))
+        cost = cp.sum_squares(Y - (A @ X + b))
+        problem = cp.Problem(cp.Minimize(cost))
+        problem.solve()
+        return (A.value, b.value)
+
+    def save_model(self, A, b):
+        rospack = rospkg.RosPack()
+        base_path = rospack.get_path('end_effector_control')
+        calibration_path = os.path.join(base_path, 'config/calibration')
+        np.save(os.path.joint(calibration_path, 'A.npy'), A)
+        np.save(os.path.joint(calibration_path, 'b.npy'), b)
+
+
+if __name__ == "__main__":
+    rdc = RoboDemoCalibrator()
+    rdc.calibrate()

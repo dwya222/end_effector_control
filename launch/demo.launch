@@ -50,8 +50,8 @@
     <arg name="info" value="true"/>
     <arg name="debug" value="$(arg debug)"/>
     <arg name="pipeline" value="$(arg pipeline)"  />
-    <arg name="dwy_launch_prefix" value="$(arg launch_prefix)"/>
-    <!-- <arg name="dwy_launch_prefix" value=""/> -->
+    <!-- <arg name="dwy_launch_prefix" value="$(arg launch_prefix)"/> -->
+    <arg name="dwy_launch_prefix" value=""/>
   </include>
 
   <!-- Run Rviz -->

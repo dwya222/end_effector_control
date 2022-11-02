@@ -185,9 +185,24 @@
   <joint name="panda_hand_joint2" type="fixed">
       <parent link="panda_link8" />
       <child link="panda_link9" />
-      <origin rpy="0 0 -0.785398163397" xyz="0 0 0.12" />
+      <origin rpy="0 1.5707963267948966 -0.785398163397" xyz="0.015 -0.015 0.04" />
   </joint>
   <link name="panda_link9">
+    <visual>
+      <origin rpy="0 0 0.0" xyz="0 0 0" />
+        <geometry>
+          <mesh filename="package://moveit_resources_panda_description/meshes/visual/april_tag.dae" />
+        </geometry>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0.0" xyz="0 0 0" />
+      <geometry>
+        <sphere radius="0.01"/>
+      </geometry>
+      <material name="green">
+        <color rgba="0 1 0 1"/>
+      </material>
+    </visual>
   </link>
   <link name="panda_hand">
       <visual>
