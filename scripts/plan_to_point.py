@@ -22,7 +22,7 @@ def main():
               point_msg.z = input("Enter z position of point: ")
               mover.planning_test(point_msg)
       else:
-          input("Press enter to plan to default point (0.4, -0.4, 0.6)")
+          input("Press enter to plan to default point (0.5, -0.4, 0.6)")
           point_msg.x = 0.5
           point_msg.y = -0.4
           point_msg.z = 0.6

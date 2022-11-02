@@ -91,7 +91,7 @@ class DemoInterface(object):
         gripper_client.send_goal(close_goal)
         gripper_client.wait_for_result(rospy.Duration.from_sec(5.0))
 
-    def plan_to_joint_goal(self, joint_values, wait=True):
+    def plan_to_joint_goal(self, joint_values):
         self.move_group.set_joint_value_target(joint_values)
         # Note returns a tuple: (Success, Trajectory Msg, Planning Time, Error Code)
         return self.move_group.plan()
@@ -106,9 +106,12 @@ class DemoInterface(object):
         return self.all_close(joint_goal, current_joints, 0.01)
 
     def go_to_start(self, wait=True):
-        joint_goal = self.move_group.get_current_joint_values()
         joint_values = [0, -0.785, 0, -2.356, 0, 1.571, 0.785]
         return self.go_to_joint_goal(joint_values, wait)
+
+    def plan_to_start(self):
+        joint_values = [0, -0.785, 0, -2.356, 0, 1.571, 0.785]
+        return self.plan_to_joint_goal(joint_values)
 
     def follow_point(self, point, grasp=False):
         # Adding object as obstacle so we don't hit it as we approach

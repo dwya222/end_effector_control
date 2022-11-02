@@ -159,6 +159,8 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(simple_trajectory src/simple_trajectory.cpp)
 target_link_libraries(simple_trajectory ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+add_executable(simple_fake_trajectory src/simple_fake_trajectory.cpp)
+target_link_libraries(simple_fake_trajectory ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 add_executable(control_stop_test src/control_stop_test.cpp)
 target_link_libraries(control_stop_test ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 add_executable(collision_check_test src/collision_check_test.cpp)
