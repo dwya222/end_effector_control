@@ -30,6 +30,31 @@
       </visual>
       <!-- END TABLE COLLISION PLANE ADDITION -->
   </link>
+  <!-- START ADD BASE APRIL TAG (VISUAL ONLY) -->
+  <joint name="april_tag_base_joint" type="fixed">
+      <parent link="panda_link0" />
+      <child link="base_april_tag" />
+      <!-- <origin rpy="1.5707963267948966 0 -2.356194490192345" xyz="0.015 -0.015 0.035" /> -->
+      <origin rpy="-1.5707963267948966 0 1.5707963267948966" xyz="0.06 0.0 0.09" />
+  </joint>
+  <link name="base_april_tag">
+    <visual>
+      <origin rpy="3.14159265359 0 0" xyz="0 0 0" />
+        <geometry>
+          <mesh filename="package://moveit_resources_panda_description/meshes/visual/base_april_tag.dae" scale="1.0 1.0 1.0"/>
+        </geometry>
+    </visual>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0" />
+      <geometry>
+        <sphere radius="0.005"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0 0 1 1"/>
+      </material>
+    </visual>
+  </link>
+  <!-- END BASE APRIL TAG (VISUAL ONLY) -->
   <link name="panda_link1">
       <visual>
           <geometry>
@@ -182,28 +207,30 @@
       <child link="panda_hand" />
       <origin rpy="0 0 -0.785398163397" xyz="0 0 0.15" />
   </joint>
-  <joint name="panda_hand_joint2" type="fixed">
+  <!-- START ADD EE APRIL TAG (VISUAL ONLY) -->
+  <joint name="ee_april_tag_joint" type="fixed">
       <parent link="panda_link8" />
-      <child link="panda_link9" />
-      <origin rpy="0 1.5707963267948966 -0.785398163397" xyz="0.015 -0.015 0.04" />
+      <child link="ee_april_tag" />
+      <origin rpy="1.5707963267948966 0 -2.356194490192345" xyz="0.015 -0.015 0.035" />
   </joint>
-  <link name="panda_link9">
+  <link name="ee_april_tag">
     <visual>
-      <origin rpy="0 0 0.0" xyz="0 0 0" />
+      <origin rpy="3.14159265359 0 0.0" xyz="0 0 0" />
         <geometry>
-          <mesh filename="package://moveit_resources_panda_description/meshes/visual/april_tag.dae" />
+          <mesh filename="package://moveit_resources_panda_description/meshes/visual/target_april_tag.dae" scale="0.6 0.6 0.6"/>
         </geometry>
     </visual>
     <visual>
       <origin rpy="0 0 0.0" xyz="0 0 0" />
       <geometry>
-        <sphere radius="0.01"/>
+        <sphere radius="0.005"/>
       </geometry>
       <material name="green">
         <color rgba="0 1 0 1"/>
       </material>
     </visual>
   </link>
+  <!-- END EE APRIL TAG (VISUAL ONLY) -->
   <link name="panda_hand">
       <visual>
         <origin rpy="0 0 0.0" xyz="0 0 -0.15" />

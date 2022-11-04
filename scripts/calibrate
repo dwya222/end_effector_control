@@ -43,13 +43,22 @@ class RoboDemoCalibrator:
     def collect_sample_data(self):
         positions_dict = {"actual_position": [],
                           "detected_position": []}
-        for joint_positions in self.joint_position_samples:
-            self.mover.go_to_joint_goal(joint_positions, wait=True)
-            actual_target_pose = self.mover.move_group.get_current_pose(end_effector_link="panda_link9")
+        for i in range(len(self.joint_position_samples)):
+            # Could use some error handling if the robot isn't able to
+            # successfully complete one of the motions for some reason
+            rospy.loginfo(f"Collecting sample number {i+1}")
+            self.mover.go_to_joint_goal(self.joint_position_samples[i], wait=True)
+            actual_target_pose = self.mover.move_group.get_current_pose(end_effector_link="ee_april_tag").pose
             actual_target_pos = actual_target_pose.position
-            detected_target_pos = rospy.wait_for_message("/point_command", Point)
-            positions_dict["actual_position"].append(actual_target_pos)
-            positions_dict["detected_position"].append(detected_target_pos)
+            rospy.loginfo("Waiting for camera to publish on '/raw_point_command' topic")
+            detected_target_pos = rospy.wait_for_message("/raw_point_command", Point)
+            positions_dict["actual_position"].append(self.point_to_dict(actual_target_pos))
+            positions_dict["detected_position"].append(self.point_to_dict(detected_target_pos))
+        return positions_dict
+
+    def point_to_dict(self, point):
+        point_dict = {'x': point.x, 'y': point.y, 'z': point.z}
+        return point_dict
 
     def convert_dict_to_arrays(self, sample_data):
         """
@@ -63,12 +72,12 @@ class RoboDemoCalibrator:
         X = np.empty((3,n))
         Y = np.empty((3,n))
         for i in range(n):
-            X[0][i] = sample_data["actual_position"][i].x
-            X[1][i] = sample_data["actual_position"][i].y
-            X[2][i] = sample_data["actual_position"][i].z
-            Y[0][i] = sample_data["detected_position"][i].x
-            Y[1][i] = sample_data["detected_position"][i].y
-            Y[2][i] = sample_data["detected_position"][i].z
+            X[0][i] = sample_data["detected_position"][i]['x']
+            X[1][i] = sample_data["detected_position"][i]['y']
+            X[2][i] = sample_data["detected_position"][i]['z']
+            Y[0][i] = sample_data["actual_position"][i]['x']
+            Y[1][i] = sample_data["actual_position"][i]['y']
+            Y[2][i] = sample_data["actual_position"][i]['z']
         return (X, Y)
 
     def generate_model(self, X, Y):
@@ -77,8 +86,8 @@ class RoboDemoCalibrator:
             X (numpy array): Observed target position data from camera
             Y (numpy array): Actual target position data from urdf
         """
-        A = cp.Varible((3,3))
-        b = cp.Varible((3,1))
+        A = cp.Variable((3,3))
+        b = cp.Variable((3,1))
         cost = cp.sum_squares(Y - (A @ X + b))
         problem = cp.Problem(cp.Minimize(cost))
         problem.solve()
@@ -88,8 +97,9 @@ class RoboDemoCalibrator:
         rospack = rospkg.RosPack()
         base_path = rospack.get_path('end_effector_control')
         calibration_path = os.path.join(base_path, 'config/calibration')
-        np.save(os.path.joint(calibration_path, 'A.npy'), A)
-        np.save(os.path.joint(calibration_path, 'b.npy'), b)
+        rospy.loginfo(f"Saving calibration model to {calibration_path}")
+        np.save(os.path.join(calibration_path, 'A.npy'), A)
+        np.save(os.path.join(calibration_path, 'b.npy'), b)
 
 
 if __name__ == "__main__":

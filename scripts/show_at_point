@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+
+import rospy
+from demo_interface import DemoInterface
+from geometry_msgs.msg import Point
+
+DEBUG = True
+
+if __name__ == "__main__":
+    d = DemoInterface()
+    rospy.sleep(0.5)
+    point = rospy.wait_for_message("/point_command", Point)
+    d.remove_object("calibrated_point")
+    d.publish_object("calibrated_point", point, 0.02, type='sphere')

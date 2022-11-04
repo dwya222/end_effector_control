@@ -24,8 +24,8 @@ def main():
     key = ' '
     while key != 'q':
         key = input("Type enter to see next pose or q to quit\n")
-        current_pose = mover.move_group.get_current_pose(end_effector_link="panda_link9")
-        current_rpy = mover.move_group.get_current_rpy(end_effector_link="panda_link9")
+        current_pose = mover.move_group.get_current_pose(end_effector_link="ee_april_tag")
+        current_rpy = mover.move_group.get_current_rpy(end_effector_link="ee_april_tag")
         current_joint_values = mover.move_group.get_current_joint_values()
         print("joint state info:")
         print(current_joint_values)
