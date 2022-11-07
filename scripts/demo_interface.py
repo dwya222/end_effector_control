@@ -116,22 +116,22 @@ class DemoInterface(object):
     def follow_point(self, point, grasp=False):
         # Adding object as obstacle so we don't hit it as we approach
         # .055 x .065 x .065
-        self.publish_object("goal", point, (0.065,0.065,0.065))
-        x = point.x
-        y = point.y
-        z = point.z
+        self.publish_object("goal", point, size=(0.05,0.06,0.055), offset=(-0.03, 0, 0))
         pose_goal = geometry_msgs.msg.Pose()
         move_group = self.move_group
         if grasp:
             theta = 90
             rpy_rot = R.from_euler('y', theta, degrees=True)
         else:
-            theta = self.get_angle(z)
+            theta = self.get_angle(float(point.z))
             rpy_rot = (R.from_euler('y', 0, degrees=True) *
                        R.from_euler('x', 180, degrees=True))
-        pose_goal.position.x = float(x)
-        pose_goal.position.y = float(y)
-        pose_goal.position.z = float(z)
+        # Move x point back since we want to focus on the center of the
+        # box, but we are given the position of the center of the front
+        # side (The box in use has a depth of about 6 cm)
+        pose_goal.position.x = float(point.x) - 0.03
+        pose_goal.position.y = float(point.y)
+        pose_goal.position.z = float(point.z)
         quat = rpy_rot.as_quat()
         pose_goal.orientation.x = float(quat[0])
         pose_goal.orientation.y = float(quat[1])
@@ -148,7 +148,7 @@ class DemoInterface(object):
 
     def planning_test(self, point, approach="top"):
         # Adding object as obstacle so we don't hit it as we approach
-        self.publish_object("goal", point, 0.0275, type='sphere')
+        self.publish_object("goal", point, size=0.0275, type='sphere')
         pose_goal = geometry_msgs.msg.Pose()
         move_group = self.move_group
         if approach=="top":
@@ -211,16 +211,21 @@ class DemoInterface(object):
             self.scene.add_sphere(name, object_pose, radius=size)
 
 
-    def publish_object(self, name, point, size, type='box', remove=False):
+    def publish_object(self, name, point, size, type='box', offset=None, remove=False):
         # May need to sleep for a second before using this after initializing Demo
         if remove:
             self.remove_object(name)
         object_pose = PoseStamped()
         object_pose.header.frame_id = self.robot.get_planning_frame()
         # Add x offset as April tag point detection is at the front of box
-        object_pose.pose.position.x = float(point.x) + 0.02
-        object_pose.pose.position.y = float(point.y)
-        object_pose.pose.position.z = float(point.z)
+        if offset is None:
+            object_pose.pose.position.x = float(point.x)
+            object_pose.pose.position.y = float(point.y)
+            object_pose.pose.position.z = float(point.z)
+        else:
+            object_pose.pose.position.x = float(point.x) + offset[0]
+            object_pose.pose.position.y = float(point.y) + offset[1]
+            object_pose.pose.position.z = float(point.z) + offset[2]
         object_pose.pose.orientation.x = 0.0
         object_pose.pose.orientation.y = 0.0
         object_pose.pose.orientation.z = 0.0

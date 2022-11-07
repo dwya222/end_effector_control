@@ -10,7 +10,7 @@ DEBUG = True
 
 if __name__ == "__main__":
     d = DemoInterface()
-    if sys.argv[0] == 'rosrun' and len(sys.argv) > 2:
+    if sys.argv[0] == 'rosrun' and len(sys.argv) > 3:
         point_topics = sys.argv[3:]
         rospy.loginfo(f"Showing points for topics {point_topics}")
     elif len(sys.argv) > 1:
@@ -22,10 +22,10 @@ if __name__ == "__main__":
 
     rospy.sleep(0.5)
     while not rospy.is_shutdown():
-        rospy.sleep(0.1)
         i = 0
         points = []
         for topic in point_topics:
+            rospy.sleep(0.1)
             points.append(rospy.wait_for_message(topic, Point))
-            d.publish_object(f"show_point{i}", point, 0.015, type='sphere')
+            d.publish_object(f"show_point{i}", points[i], 0.015, type='sphere')
             i += 1

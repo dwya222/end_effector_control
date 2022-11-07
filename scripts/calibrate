@@ -12,7 +12,11 @@ import rospkg
 from demo_interface import DemoInterface
 from geometry_msgs.msg import Point
 
-JOINT_POSITION_SAMPLES_DIR = "./calibration_joint_position_samples"
+rospack = rospkg.RosPack()
+EE_CONTROL_PATH = rospack.get_path('end_effector_control')
+JOINT_POSITION_SAMPLES_DIR = os.path.join(EE_CONTROL_PATH, 'scripts',
+                                          './calibration_joint_position_samples')
+RAW_TOPIC = "/raw_ee_position"
 
 
 class RoboDemoCalibrator:
@@ -37,9 +41,6 @@ class RoboDemoCalibrator:
         (A, b) = self.generate_model(X, Y)
         self.save_model(A, b)
 
-# TODO: need to align world frame axes for urdf vs observed data. i.e. +x in
-# observed frame may equate to -x in the urdf frame. THIS WILL THROW THE WHOLE
-# MODEL OFF IF NOT CONSIDERED (visually analyze data after collected)
     def collect_sample_data(self):
         positions_dict = {"actual_position": [],
                           "detected_position": []}
@@ -48,10 +49,11 @@ class RoboDemoCalibrator:
             # successfully complete one of the motions for some reason
             rospy.loginfo(f"Collecting sample number {i+1}")
             self.mover.go_to_joint_goal(self.joint_position_samples[i], wait=True)
-            actual_target_pose = self.mover.move_group.get_current_pose(end_effector_link="ee_april_tag").pose
+            actual_target_pose = self.mover.move_group.get_current_pose(
+                    end_effector_link="ee_april_tag").pose
             actual_target_pos = actual_target_pose.position
-            rospy.loginfo("Waiting for camera to publish on '/raw_point_command' topic")
-            detected_target_pos = rospy.wait_for_message("/raw_point_command", Point)
+            rospy.loginfo(f"Waiting for camera to publish on topic: {RAW_TOPIC}")
+            detected_target_pos = rospy.wait_for_message(RAW_TOPIC, Point)
             positions_dict["actual_position"].append(self.point_to_dict(actual_target_pos))
             positions_dict["detected_position"].append(self.point_to_dict(detected_target_pos))
         return positions_dict
@@ -94,9 +96,7 @@ class RoboDemoCalibrator:
         return (A.value, b.value)
 
     def save_model(self, A, b):
-        rospack = rospkg.RosPack()
-        base_path = rospack.get_path('end_effector_control')
-        calibration_path = os.path.join(base_path, 'config/calibration')
+        calibration_path = os.path.join(EE_CONTROL_PATH, 'config/calibration')
         rospy.loginfo(f"Saving calibration model to {calibration_path}")
         np.save(os.path.join(calibration_path, 'A.npy'), A)
         np.save(os.path.join(calibration_path, 'b.npy'), b)

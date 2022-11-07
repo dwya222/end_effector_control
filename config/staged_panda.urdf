@@ -211,11 +211,11 @@
   <joint name="ee_april_tag_joint" type="fixed">
       <parent link="panda_link8" />
       <child link="ee_april_tag" />
-      <origin rpy="1.5707963267948966 0 -2.356194490192345" xyz="0.015 -0.015 0.035" />
+      <origin rpy="1.5707963267948966 0 -2.356194490192345" xyz="0.005 -0.005 0.035" />
   </joint>
   <link name="ee_april_tag">
     <visual>
-      <origin rpy="3.14159265359 0 0.0" xyz="0 0 0" />
+      <origin rpy="3.14159265359 0 0.0" xyz="0 0 -0.015" />
         <geometry>
           <mesh filename="package://moveit_resources_panda_description/meshes/visual/target_april_tag.dae" scale="0.6 0.6 0.6"/>
         </geometry>
@@ -223,10 +223,10 @@
     <visual>
       <origin rpy="0 0 0.0" xyz="0 0 0" />
       <geometry>
-        <sphere radius="0.005"/>
+        <sphere radius="0.0175"/>
       </geometry>
-      <material name="green">
-        <color rgba="0 1 0 1"/>
+      <material name="blue">
+        <color rgba="0 0 1 1"/>
       </material>
     </visual>
   </link>
