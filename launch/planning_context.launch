@@ -1,12 +1,10 @@
 <?xml version="1.0" ?>
 <launch>
-  <arg name="load_gripper" default="true" />
-
   <!-- By default we do not overwrite the URDF. Change the following to true to change the default behavior -->
   <arg name="load_robot_description" default="false"/>
 
-  <!-- By default we will not be working in the BMI or grasp setup environment -->
-  <arg name="setup" default="default"/>
+  <!-- By default we will be working with the staged panda urdf -->
+  <arg name="setup" default="staged"/>
 
   <!-- The name of the parameter under which the URDF is loaded -->
   <arg name="robot_description" default="robot_description"/>
@@ -26,9 +24,7 @@
 
   <!-- The semantic description that corresponds to the URDF -->
   <param name="$(arg robot_description)_semantic"
-    command="$(find xacro)/xacro '$(find panda_moveit_config)/config/panda_arm_hand.srdf.xacro'" if="$(arg load_gripper)" />
-  <param name="$(arg robot_description)_semantic"
-    command="$(find xacro)/xacro '$(find panda_moveit_config)/config/panda_arm.srdf.xacro'" unless="$(arg load_gripper)" />
+    command="$(find xacro)/xacro '$(find end_effector_control)/config/panda_arm_hand.srdf.xacro'" />
 
   <!-- Load updated joint limits (override information from URDF) -->
   <group ns="$(arg robot_description)_planning">
