@@ -7,11 +7,11 @@
   <arg name="db_path" default="$(find panda_moveit_config)/default_warehouse_mongo_db" />
 
   <!-- By default, we are not in debug mode -->
-  <arg name="debug" default="true" />
+  <arg name="debug" default="false" />
   <arg name="pipeline" default="ompl" />
 
-  <!-- By default, not using bmi or grasp URDF -->
-  <arg name="setup" default="default" />
+  <!-- By default, use the staged_panda URDF -->
+  <arg name="setup" default="staged" />
   <!--
   By default, hide joint_state_publisher's GUI
 

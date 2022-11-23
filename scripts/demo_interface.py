@@ -37,6 +37,7 @@ class DemoInterface(object):
         self.scene = moveit_commander.PlanningSceneInterface()
         self.group_name = "panda_arm"
         self.move_group = moveit_commander.MoveGroupCommander(self.group_name)
+        # self.move_group.set_planner_id("RTRRTstarkConfigDefault")
         self.move_group.set_planner_id("RRTstarkConfigDefault")
         self.set_planning_time(2.0)
         self.move_group.set_end_effector_link("panda_hand")
