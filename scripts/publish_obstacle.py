@@ -5,17 +5,18 @@ from demo_interface import DemoInterface
 from geometry_msgs.msg import Point
 import threading as th
 
-DEBUG = True
+DEBUG = False
 
 def requestPoint():
     if DEBUG:
-        print("Where would you like to publish an obstacle?")
+        rospy.loginfo("Where would you like to publish an obstacle?")
         x = float(input("x: "))
         y = float(input("y: "))
         z = float(input("z: "))
         r = float(input("radius: "))
     else:
-        (x, y, z, r) = (0.5, -0.4, 0.6, 0.25)
+        (x, y, z, r) = (0.5, -0.4, 0.6, 0.05)
+        rospy.loginfo(f"publishing obstacle at default location {x, y, z} with radius {r}")
     return (pointMsg(x, y, z), r)
 
 def pointMsg(x, y, z):
@@ -31,9 +32,20 @@ def remove_obstacle(demo_interface_object):
 
 if __name__ == "__main__":
     d = DemoInterface()
-    (point, radius) = requestPoint()
+    rospy.sleep(0.5) # Need to sleep for a second to load up planning scene
 
     # Add obstacle to scene
-    rospy.sleep(1.0) # Need to sleep for a second to load up planning scene
-    remove_obstacle(d)
-    d.publish_object("obstacle", point, radius, type='sphere')
+    while not rospy.is_shutdown():
+        response = input("Add or remove obstacle ('a' or 'r' or 'ra')")
+        if response != 'a' and response != 'r' and response != 'ra':
+            rospy.logwarn("Invalid response")
+            continue
+        if response == 'a':
+            (point, radius) = requestPoint()
+            d.publish_object("obstacle", point, radius, type='sphere')
+        if response == 'r':
+            remove_obstacle(d)
+        if response == 'ra':
+            (point, radius) = requestPoint()
+            remove_obstacle(d)
+            d.publish_object("obstacle", point, radius, type='sphere')
