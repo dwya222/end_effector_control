@@ -29,16 +29,17 @@ import time
 
 class DemoInterface(object):
     """Demo Interface"""
-    def __init__(self, real=False):
+    def __init__(self, real=False, node_initialized=False):
         super(DemoInterface, self).__init__()
         moveit_commander.roscpp_initialize(sys.argv)
-        rospy.init_node('demo_interface', anonymous=True)
+        if not node_initialized:
+            rospy.init_node('demo_interface', anonymous=True)
         self.robot = moveit_commander.RobotCommander()
         self.scene = moveit_commander.PlanningSceneInterface()
         self.group_name = "panda_arm"
         self.move_group = moveit_commander.MoveGroupCommander(self.group_name)
-        # self.move_group.set_planner_id("RTRRTstarkConfigDefault")
-        self.move_group.set_planner_id("RRTstarkConfigDefault")
+        # self.set_planner_id("RTRRTstarkConfigDefault")
+        self.set_planner_id("RRTstarkConfigDefault")
         self.set_planning_time(2.0)
         self.move_group.set_end_effector_link("panda_hand")
         self.display_trajectory_publisher = rospy.Publisher(
@@ -56,6 +57,9 @@ class DemoInterface(object):
             gripper_client.wait_for_server()
             close_goal = MoveGoal(width = 0.054, speed = 0.08)
             open_goal = MoveGoal(width = 0.08, speed = 0.08)
+
+    def set_planner_id(self, planner_id):
+        self.move_group.set_planner_id(planner_id)
 
     def set_planning_time(self, planning_time):
         self.move_group.set_planning_time(planning_time)
