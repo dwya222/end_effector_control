@@ -9,10 +9,6 @@ for dynamic information about the environment.
 
 TODO:
     - create stopping method that works smoothly on hardware
-    - create custom config rather than overwritting RRTstarkConfigDefault
-    - figure out a way to create a better planner termination condition that is more comparative to
-      RTRRT* (i.e. terminate planning when a path is first solved for rather than waiting 't'
-      seconds)
 
 
 """
@@ -27,7 +23,7 @@ class RRTPlannerControlInterface():
 
     def __init__(self):
         self.d = DemoInterface(node_initialized=True)
-        self.d.move_group.set_planner_id("RRTstarkConfigDefault")
+        self.d.move_group.set_planner_id("RRTstarkConfigRealTimeTesting")
         self.d.set_planning_time(0.5)
         self.init_subscribers()
 

@@ -73,7 +73,7 @@ class TestInterface():
         self.object_names = self.d.scene.get_known_object_names()
         # for object_name in self.object_names:
         #     self.d.remove_object(object_name)
-        self.d.set_planner_id("RRTstarkConfigDefault")
+        self.d.set_planner_id("RRTstarkConfigRealTimeTesting")
         if start:
             rospy.loginfo(f"Going to provided start: {start}")
             self.d.go_to_joint_goal(start)
@@ -103,7 +103,7 @@ class TestInterface():
 
     def run_rrt_change_goal_test(self):
         (start_state, goal_state) = self.load_start_and_goal_states()
-        self.setup("RRTstarkConfigDefault", start=start_state)
+        self.setup("RRTstarkConfigRealTimeTesting", start=start_state)
         rospy.loginfo("Sending joint goal")
         self.d.go_to_joint_goal(goal_state)
 
@@ -128,7 +128,7 @@ class TestInterface():
 
     def run_rrt_add_obstacle_test(self):
         (start_state, goal_state) = self.load_start_and_goal_states()
-        self.setup("RRTstarkConfigDefault", start=start_state)
+        self.setup("RRTstarkConfigRealTimeTesting", start=start_state)
         (x, y, z, r) = (0.4, -0.4, 0.4, 0.05)
         self.d.publish_object_manual("obstacle", x, y, z, r, type='sphere')
         rospy.loginfo("Sending joint goal")
@@ -160,7 +160,7 @@ class TestInterface():
 
     def run_rrt_add_obstacle_change_goal_test(self):
         (start_state, goal_state) = self.load_start_and_goal_states()
-        self.setup("RRTstarkConfigDefault", start=start_state)
+        self.setup("RRTstarkConfigRealTimeTesting", start=start_state)
         (x, y, z, size) = (0.4, 0.0, 0.4, (0.5, 0.02, 0.5))
         rospy.loginfo("Adding obstacle")
         self.d.publish_object_manual("obstacle", x, y, z, size)
