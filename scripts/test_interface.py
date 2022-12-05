@@ -19,11 +19,7 @@ rospack = rospkg.RosPack()
 EE_CONTROL_PATH = rospack.get_path('end_effector_control')
 PLANNING_DATA_PATH = os.path.join(EE_CONTROL_PATH, 'data', 'planning')
 SUMMARY_COLUMNS = ["Test", "RRTstar cost", "RTRRTstar cost", "Difference"]
-# INITIAL_JOINT_GOAL = [-0.879063, -0.230783, -0.033678, -2.086562, 1.778457, 2.200953,
-#                               1.999634]
-# FINAL_JOINT_GOAL = [-0.7849918264867694, 0.714459294555375, 2.081170739860527,
-#                             -2.13964710731112, -2.1925090777104494, 1.6207882359697081,
-#                             -0.6480528889305832]
+START_STATE = [0, -0.785, 0, -2.356, 0, 1.571, 0.785]
 INITIAL_JOINT_GOAL = [0.9022525451956217, -1.0005812062660042, -1.7602947518592436,
                       -2.7099525294963933, -0.1420045228964755, 3.493668294307763,
                       -0.3472854722693375]
@@ -43,16 +39,33 @@ class TestInterface():
         self.get_joint_goals()
 
     def get_joint_goals(self):
+        self.start_state = rospy.get_param("/test_interface/start_state", START_STATE)
         self.initial_joint_goal = rospy.get_param("/test_interface/initial_joint_goal",
                                                   INITIAL_JOINT_GOAL)
-        self.initial_joint_goal2 = rospy.get_param("/test_interface/initial_joint_goal2",
-                                                  INITIAL_JOINT_GOAL2)
         self.final_joint_goal = rospy.get_param("/test_interface/final_joint_goal",
                                                 FINAL_JOINT_GOAL)
 
     def init_pubs(self):
         self.new_goal_pub = rospy.Publisher("/new_planner_goal", Float64MultiArray, queue_size=1)
         self.obstacles_changed_pub = rospy.Publisher("/obstacles_changed", Bool, queue_size=1)
+
+    def run_test(self, test_type):
+        if test_type == "change_goal":
+            dyn_time = rospy.get_param("/test_interface/dyn_time", 1.75)
+            rospy.loginfo("Running change_goal test")
+            self.run_change_goal_test(dyn_time)
+        elif test_type == "add_obstacle":
+            dyn_time = rospy.get_param("/test_interface/dyn_time", 1.0)
+            rospy.loginfo("Running add_obstacle test")
+            self.run_add_obstacle_test(dyn_time)
+        elif test_type == "add_obstacle_change_goal":
+            dyn_time = rospy.get_param("/test_interface/dyn_time", 2.0)
+            self.initial_joint_goal = rospy.get_param("/test_interface/initial_joint_goal",
+                                                      INITIAL_JOINT_GOAL2)
+            rospy.loginfo("Running add_obstacle_change_goal test")
+            self.run_add_obstacle_change_goal_test(dyn_time)
+        else:
+            rospy.logerr(f"Invalid test_type: {test_type}")
 
     def setup(self, planner, start=[]):
         rospy.loginfo("Setting up")
@@ -65,24 +78,24 @@ class TestInterface():
             rospy.loginfo(f"Going to provided start: {start}")
             self.d.go_to_joint_goal(start)
         else:
-            rospy.loginfo("Going to default start")
-            self.d.go_to_start()
+            rospy.loginfo("Going to start state")
+            self.d.go_to_joint_goal(self.start_state)
         self.d.set_planner_id(planner)
 
-    def run_change_goal_test(self):
+    def run_change_goal_test(self, dyn_time):
         rospy.loginfo("Running RTRRT change_goal test")
-        self.run_rtrrt_change_goal_test()
+        self.run_rtrrt_change_goal_test(dyn_time)
         rospy.loginfo("Running RRT change_goal test")
         self.run_rrt_change_goal_test()
         rospy.loginfo("Saving summary for change_goal test")
         self.update_summary("change_goal")
 
-    def run_rtrrt_change_goal_test(self):
+    def run_rtrrt_change_goal_test(self, dyn_time):
         self.setup("RTRRTstarkConfigDefault")
         final_joint_msg = Float64MultiArray()
         final_joint_msg.data = self.final_joint_goal
-        log_timer = th.Timer(1.75, rospy.loginfo, args=("Sending final joint goal",))
-        change_goal_timer = th.Timer(1.75, self.new_goal_pub.publish, args=(final_joint_msg,))
+        log_timer = th.Timer(dyn_time, rospy.loginfo, args=("Sending final joint goal",))
+        change_goal_timer = th.Timer(dyn_time, self.new_goal_pub.publish, args=(final_joint_msg,))
         log_timer.start()
         change_goal_timer.start()
         rospy.loginfo("Sending initial joint goal")
@@ -91,24 +104,22 @@ class TestInterface():
     def run_rrt_change_goal_test(self):
         (start_state, goal_state) = self.load_start_and_goal_states()
         self.setup("RRTstarkConfigDefault", start=start_state)
-        joint_goal_msg = Float64MultiArray()
-        joint_goal_msg.data = goal_state
         rospy.loginfo("Sending joint goal")
         self.d.go_to_joint_goal(goal_state)
 
-    def run_add_obstacle_test(self):
+    def run_add_obstacle_test(self, dyn_time):
         rospy.loginfo("Running RTRRT add_obstacle test")
-        self.run_rtrrt_add_obstacle_test()
+        self.run_rtrrt_add_obstacle_test(dyn_time)
         rospy.loginfo("Running RRT add_obstacle test")
         self.run_rrt_add_obstacle_test()
         rospy.loginfo("Saving summary for add_obstacle test")
         self.update_summary("add_obstacle")
 
-    def run_rtrrt_add_obstacle_test(self):
+    def run_rtrrt_add_obstacle_test(self, dyn_time):
         self.setup("RTRRTstarkConfigDefault")
-        log_timer = th.Timer(1.0, rospy.loginfo, args=("Adding new obstacle now",))
         (x, y, z, r) = (0.4, -0.4, 0.4, 0.05)
-        add_obstacle_timer = th.Timer(1.0, self.d.publish_object_manual, ("obstacle", x, y, z,
+        log_timer = th.Timer(dyn_time, rospy.loginfo, args=("Adding new obstacle now",))
+        add_obstacle_timer = th.Timer(dyn_time, self.d.publish_object_manual, ("obstacle", x, y, z,
                                                                           r, 'sphere'))
         log_timer.start()
         add_obstacle_timer.start()
@@ -123,29 +134,29 @@ class TestInterface():
         rospy.loginfo("Sending joint goal")
         self.d.go_to_joint_goal(goal_state)
 
-    def run_add_obstacle_change_goal_test(self):
+    def run_add_obstacle_change_goal_test(self, dyn_time):
         rospy.loginfo("Running RTRRT add_obstacle_change_goal test")
-        self.run_rtrrt_add_obstacle_change_goal_test()
+        self.run_rtrrt_add_obstacle_change_goal_test(dyn_time)
         rospy.loginfo("Running RRT add_obstacle_change_goal test")
         self.run_rrt_add_obstacle_change_goal_test()
         rospy.loginfo("Saving summary for add_obstacle_change_goal test")
         self.update_summary("add_obstacle_change_goal")
 
-    def run_rtrrt_add_obstacle_change_goal_test(self):
+    def run_rtrrt_add_obstacle_change_goal_test(self, dyn_time):
         self.setup("RTRRTstarkConfigDefault")
         final_joint_msg = Float64MultiArray()
         final_joint_msg.data = self.final_joint_goal
         (x, y, z, size) = (0.8, 0.0, 0.4, (0.5, 0.02, 0.4))
         log_timer = th.Timer(2.0, rospy.loginfo, args=("Adding obstacle, sending final joint "
                                                        "goal"))
-        add_obstacle_timer = th.Timer(2.0, self.d.publish_object_manual, ("obstacle", x, y, z,
+        add_obstacle_timer = th.Timer(dyn_time, self.d.publish_object_manual, ("obstacle", x, y, z,
                                                                           size))
-        change_goal_timer = th.Timer(2.0, self.new_goal_pub.publish, args=(final_joint_msg,))
+        change_goal_timer = th.Timer(dyn_time, self.new_goal_pub.publish, args=(final_joint_msg,))
         log_timer.start()
         add_obstacle_timer.start()
         change_goal_timer.start()
         rospy.loginfo("Sending initial joint goal")
-        self.d.plan_to_joint_goal(self.initial_joint_goal2)
+        self.d.plan_to_joint_goal(self.initial_joint_goal)
 
     def run_rrt_add_obstacle_change_goal_test(self):
         (start_state, goal_state) = self.load_start_and_goal_states()
@@ -153,8 +164,6 @@ class TestInterface():
         (x, y, z, size) = (0.4, 0.0, 0.4, (0.5, 0.02, 0.5))
         rospy.loginfo("Adding obstacle")
         self.d.publish_object_manual("obstacle", x, y, z, size)
-        joint_goal_msg = Float64MultiArray()
-        joint_goal_msg.data = goal_state
         rospy.loginfo("Sending joint goal")
         self.d.go_to_joint_goal(goal_state)
 
@@ -204,9 +213,5 @@ class TestInterface():
 if __name__ == "__main__":
     rospy.init_node("test_interface")
     ti = TestInterface()
-    rospy.loginfo("Running change_goal test")
-    # ti.run_change_goal_test()
-    # ti.run_add_obstacle_test()
-    ti.run_add_obstacle_change_goal_test()
-
-
+    test_type = rospy.get_param('/test_interface/test_type', 'change_goal')
+    ti.run_test(test_type)

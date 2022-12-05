@@ -1,0 +1,11 @@
+<launch>
+  <group ns="test_interface">
+    <arg name="test_type" default="change_goal"/>
+    <!-- Amount of time before dynamics occur (i.e. time before goal state changes)-->
+    <arg name="dyn_time" default=""/>
+    <arg name="start_state" default=""/>
+    <arg name="initial_joint_goal" default=""/>
+    <arg name="final_joint_goal" default=""/>
+  </group>
+  <node pkg="end_effector_control" type="test_interface.py" name="test_interface_node"/>
+</launch>
