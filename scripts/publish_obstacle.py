@@ -5,17 +5,18 @@ from demo_interface import DemoInterface
 from geometry_msgs.msg import Point
 import threading as th
 
-DEBUG = False
+DEFAULT = False
 
 def requestPoint():
-    if DEBUG:
+    if DEFAULT:
+        # (x, y, z, r) = (0.5, -0.4, 0.6, 0.05)
+        (x, y, z, r) = (0.4, -0.4, 0.4, 0.05)
+    else:
         rospy.loginfo("Where would you like to publish an obstacle?")
         x = float(input("x: "))
         y = float(input("y: "))
         z = float(input("z: "))
         r = float(input("radius: "))
-    else:
-        (x, y, z, r) = (0.5, -0.4, 0.6, 0.05)
         rospy.loginfo(f"publishing obstacle at default location {x, y, z} with radius {r}")
     return (pointMsg(x, y, z), r)
 
@@ -36,7 +37,7 @@ if __name__ == "__main__":
 
     # Add obstacle to scene
     while not rospy.is_shutdown():
-        response = input("Add or remove obstacle ('a' or 'r' or 'ra')")
+        response = input("Add or remove obstacle ('a' or 'r' or 'ra')\n")
         if response != 'a' and response != 'r' and response != 'ra':
             rospy.logwarn("Invalid response")
             continue
