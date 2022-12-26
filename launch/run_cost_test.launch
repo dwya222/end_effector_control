@@ -1,11 +1,23 @@
 <launch>
+  <arg name="test" default="change_goal"/>
+  <!-- Amount of time before dynamics occur (i.e. time before goal state changes in change_goal test)-->
+  <arg name="dyn_time" default=""/>
+  <arg name="start_state" default=""/>
+  <arg name="initial_joint_goal" default=""/>
+  <arg name="final_joint_goal" default=""/>
   <group ns="test_interface">
-    <arg name="test_type" default="change_goal"/>
-    <!-- Amount of time before dynamics occur (i.e. time before goal state changes)-->
-    <arg name="dyn_time" default=""/>
-    <arg name="start_state" default=""/>
-    <arg name="initial_joint_goal" default=""/>
-    <arg name="final_joint_goal" default=""/>
+    <param unless="$(eval arg('test')=='')" name="test" value="$(arg test)"/>
+    <param unless="$(eval arg('dyn_time')=='')" name="dyn_time" value="$(arg dyn_time)"/>
+    <param unless="$(eval arg('start_state')=='')" name="start_state" value="$(arg start_state)"/>
+    <param unless="$(eval arg('initial_joint_goal')=='')" name="initial_joint_goal"
+      value="$(arg initial_joint_goal)"/>
+    <param unless="$(eval arg('final_joint_goal')=='')" name="final_joint_goal"
+      value="$(arg final_joint_goal)"/>
   </group>
-  <node pkg="end_effector_control" type="test_interface.py" name="test_interface_node"/>
+  <node if="$(eval arg('test')=='add_obstacle_rrt_only')" pkg="end_effector_control"
+    type="obstacle_changed_detector.py" name="obstacle_changed_detector" output="screen"/>
+  <node if="$(eval arg('test')=='add_obstacle_rrt_only')" pkg="end_effector_control"
+    type="RRT_dynamic_interface.py" name="RRT_dynamic_interface" output="screen"/>
+  <node pkg="end_effector_control" type="test_interface.py" name="test_interface_node"
+    output="screen"/>
 </launch>

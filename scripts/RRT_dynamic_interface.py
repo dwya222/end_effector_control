@@ -25,6 +25,7 @@ class RRTPlannerControlInterface():
         self.d = DemoInterface(node_initialized=True)
         self.d.move_group.set_planner_id("RRTstarkConfigRealTimeTesting")
         self.d.set_planning_time(0.5)
+        self.current_goal = []
         self.init_subscribers()
 
     def init_subscribers(self):
@@ -40,7 +41,8 @@ class RRTPlannerControlInterface():
 
     def obstacles_changed(self, changed_msg):
         self.d.move_group.stop()
-        self.d.go_to_joint_goal(self.current_goal, wait=False)
+        if self.current_goal:
+            self.d.go_to_joint_goal(self.current_goal, wait=False)
 
 if __name__ == "__main__":
     rospy.init_node("RRT_dynamic_interface")
