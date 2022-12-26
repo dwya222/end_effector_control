@@ -13,11 +13,19 @@ TODO:
 
 """
 
+import os
+
 import rospy
+import rospkg
 from std_msgs.msg import Float64MultiArray
 from std_msgs.msg import Bool
 
 from demo_interface import DemoInterface
+
+rospack = rospkg.RosPack()
+EE_CONTROL_PATH = rospack.get_path('end_effector_control')
+PLANNING_DATA_PATH = os.path.join(EE_CONTROL_PATH, 'data', 'planning')
+PLAN_TIME_FILE_PATH = os.path.join(PLANNING_DATA_PATH, 'rrt_last_plan_time.txt')
 
 class RRTPlannerControlInterface():
 
@@ -42,7 +50,12 @@ class RRTPlannerControlInterface():
     def obstacles_changed(self, changed_msg):
         self.d.move_group.stop()
         if self.current_goal:
+            plan_start_time = rospy.Time.now()
             self.d.go_to_joint_goal(self.current_goal, wait=False)
+            plan_time = (rospy.Time.now() - plan_start_time).to_sec()
+            rospy.logwarn(f"Time to plan: {plan_time}")
+            with open(PLAN_TIME_FILE_PATH, 'w') as f:
+                f.write(str(plan_time))
 
 if __name__ == "__main__":
     rospy.init_node("RRT_dynamic_interface")

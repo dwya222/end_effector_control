@@ -22,6 +22,7 @@ rospack = rospkg.RosPack()
 EE_CONTROL_PATH = rospack.get_path('end_effector_control')
 PLANNING_DATA_PATH = os.path.join(EE_CONTROL_PATH, 'data', 'planning')
 SUMMARY_COLUMNS = ["Test", "RRTstar cost", "RTRRTstar cost", "Difference"]
+RRT_SUMMARY_COLUMNS = ["Test", "RRTstar cost", "RRTstar plan time"]
 START_STATE = [0, -0.785, 0, -2.356, 0, 1.571, 0.785]
 INITIAL_JOINT_GOAL = [0.9022525451956217, -1.0005812062660042, -1.7602947518592436,
                       -2.7099525294963933, -0.1420045228964755, 3.493668294307763,
@@ -86,6 +87,7 @@ class TestInterface():
         rospy.loginfo(f"Moving to start: {start}")
         self.d.go_to_joint_goal(start)
         self.d.set_planner_id(planner)
+        self.d.set_planning_time(10.0)
 
     def run_change_goal_test(self, dyn_time):
         rospy.loginfo("Running RTRRT change_goal test")
@@ -215,14 +217,29 @@ class TestInterface():
         summary_db.to_csv(REPORT_PATH, index=False)
 
     def update_rrt_only_summary(self, test):
-        rospy.logwarn("TODO: add cost calculations")
+        RRTstar_cost = self.calculate_run_costs(rrt_only=True)
+        rospy.logwarn(f"RRT* cost: {RRTstar_cost}")
+        PLAN_TIME_FILE_PATH = os.path.join(PLANNING_DATA_PATH, 'rrt_last_plan_time.txt')
+        with open(PLAN_TIME_FILE_PATH, 'r') as f:
+            RRTstar_plan_time = float(f.read())
+        run_db = pd.DataFrame([[test, RRTstar_cost, RRTstar_plan_time]],
+                              columns=RRT_SUMMARY_COLUMNS)
+        RRT_REPORT_PATH = os.path.join(PLANNING_DATA_PATH, 'rrt_only_summary.csv')
+        if os.path.exists(RRT_REPORT_PATH):
+            summary_db = pd.read_csv(RRT_REPORT_PATH)
+        else:
+            summary_db = pd.DataFrame(columns=RRT_SUMMARY_COLUMNS)
+        summary_db = pd.concat([summary_db, run_db])
+        summary_db.to_csv(RRT_REPORT_PATH, index=False)
 
-    def calculate_run_costs(self):
+    def calculate_run_costs(self, rrt_only=False):
         with open(os.path.join(PLANNING_DATA_PATH, 'RRTstar_run.json'), 'r') as f:
             RRT_json = json.load(f)
+        RRT_cost = self.calculate_cost(RRT_json['States'])
+        if rrt_only:
+            return RRT_cost
         with open(os.path.join(PLANNING_DATA_PATH, 'RTRRTstar_run.json'), 'r') as f:
             RTRRT_json = json.load(f)
-        RRT_cost = self.calculate_cost(RRT_json['States'])
         # Extract RTRRT cost from second leg
         num_goals = len(RTRRT_json.items())-1
         last_goal_states_key = "Goal" + str(num_goals) + "States"
