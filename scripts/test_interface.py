@@ -11,6 +11,7 @@ import rospy
 import rospkg
 import actionlib
 from moveit_msgs.msg import ExecuteTrajectoryAction
+from moveit_msgs.msg import MoveGroupActionFeedback
 from std_msgs.msg import Float64MultiArray
 from std_msgs.msg import Bool
 
@@ -22,7 +23,7 @@ rospack = rospkg.RosPack()
 EE_CONTROL_PATH = rospack.get_path('end_effector_control')
 PLANNING_DATA_PATH = os.path.join(EE_CONTROL_PATH, 'data', 'planning')
 SUMMARY_COLUMNS = ["Test", "RRTstar cost", "RTRRTstar cost", "Difference"]
-RRT_SUMMARY_COLUMNS = ["Test", "RRTstar cost", "RRTstar plan time"]
+RRT_SUMMARY_COLUMNS = ["Test", "RRTstar shortest path cost", "RRTstar cost", "RRTstar plan time"]
 START_STATE = [0, -0.785, 0, -2.356, 0, 1.571, 0.785]
 INITIAL_JOINT_GOAL = [0.9022525451956217, -1.0005812062660042, -1.7602947518592436,
                       -2.7099525294963933, -0.1420045228964755, 3.493668294307763,
@@ -33,6 +34,7 @@ INITIAL_JOINT_GOAL2 = [-0.5578778636322044, 0.908623569993187, -0.38844591131009
 FINAL_JOINT_GOAL = [1.1901980109241104, 0.9615559746057705, -0.5881359185350531,
                     -1.2015471132200233, 0.5281574185640393, 2.0160775068768824,
                     1.3658315499054479]
+SERVICE_FEEDBACK_TOPIC = "/move_group/feedback"
 
 class TestInterface():
 
@@ -87,7 +89,7 @@ class TestInterface():
         rospy.loginfo(f"Moving to start: {start}")
         self.d.go_to_joint_goal(start)
         self.d.set_planner_id(planner)
-        self.d.set_planning_time(10.0)
+        self.d.set_planning_time(2.0)
 
     def run_change_goal_test(self, dyn_time):
         rospy.loginfo("Running RTRRT change_goal test")
@@ -181,8 +183,9 @@ class TestInterface():
         self.setup("RRTstarkConfigRealTimeTesting")
         # start nodes for dynamic rrt*
         self.run_rrt_only_add_obstacle(dyn_time)
+        success = self.check_service_feedback()
         rospy.loginfo("Saving summary for add_obstacle_rrt_only test")
-        self.update_rrt_only_summary("add_obstacle")
+        self.update_rrt_only_summary("add_obstacle", success)
 
     def run_rrt_only_add_obstacle(self, dyn_time):
         (x, y, z, r) = (0.4, -0.4, 0.4, 0.05)
@@ -193,9 +196,17 @@ class TestInterface():
         rospy.sleep(dyn_time)
         rospy.loginfo("Adding obstacle")
         self.d.publish_object_manual("obstacle", x, y, z, r, 'sphere')
-        sleep_time = 20
-        rospy.loginfo(f"Sleeping for {sleep_time} seconds to allow trajectory to complete")
+        sleep_time = 3
+        rospy.loginfo(f"Sleeping for {sleep_time} seconds to allow trajectory to begin")
         rospy.sleep(sleep_time)
+
+    def check_service_feedback(self):
+        rospy.loginfo(f"Waiting for '{SERVICE_FEEDBACK_TOPIC}' feedback msg...")
+        msg = rospy.wait_for_message(SERVICE_FEEDBACK_TOPIC, MoveGroupActionFeedback)
+        rospy.loginfo(f"Feedback status: {msg.status}")
+        if msg.status.status == 3:
+            return True
+        return False
 
     def load_start_and_goal_states(self):
         with open(os.path.join(PLANNING_DATA_PATH, 'RTRRTstar_run.json'), 'r') as f:
@@ -216,13 +227,17 @@ class TestInterface():
         summary_db = pd.concat([summary_db, run_db])
         summary_db.to_csv(REPORT_PATH, index=False)
 
-    def update_rrt_only_summary(self, test):
-        RRTstar_cost = self.calculate_run_costs(rrt_only=True)
-        rospy.logwarn(f"RRT* cost: {RRTstar_cost}")
+    def update_rrt_only_summary(self, test, success=True):
+        if success:
+            RRTstar_cost, RRTstar_best_cost = self.calculate_run_costs(rrt_only=True,
+                                                                       best_cost=True)
+            rospy.logwarn(f"RRT* cost: {RRTstar_cost}, RRT* best_cost: {RRTstar_best_cost}")
+        else:
+            (RRTstar_cost, RRTstar_best_cost) = ("FAIL", "N/A")
         PLAN_TIME_FILE_PATH = os.path.join(PLANNING_DATA_PATH, 'rrt_last_plan_time.txt')
         with open(PLAN_TIME_FILE_PATH, 'r') as f:
             RRTstar_plan_time = float(f.read())
-        run_db = pd.DataFrame([[test, RRTstar_cost, RRTstar_plan_time]],
+        run_db = pd.DataFrame([[test, RRTstar_best_cost, RRTstar_cost, RRTstar_plan_time]],
                               columns=RRT_SUMMARY_COLUMNS)
         RRT_REPORT_PATH = os.path.join(PLANNING_DATA_PATH, 'rrt_only_summary.csv')
         if os.path.exists(RRT_REPORT_PATH):
@@ -232,12 +247,16 @@ class TestInterface():
         summary_db = pd.concat([summary_db, run_db])
         summary_db.to_csv(RRT_REPORT_PATH, index=False)
 
-    def calculate_run_costs(self, rrt_only=False):
+    def calculate_run_costs(self, rrt_only=False, best_cost=False):
         with open(os.path.join(PLANNING_DATA_PATH, 'RRTstar_run.json'), 'r') as f:
             RRT_json = json.load(f)
         RRT_cost = self.calculate_cost(RRT_json['States'])
         if rrt_only:
-            return RRT_cost
+            if best_cost:
+                RRT_best_cost = self.calculate_shortest_path_cost(RRT_json['States'])
+                return (RRT_cost, RRT_best_cost)
+            else:
+                return RRT_cost
         with open(os.path.join(PLANNING_DATA_PATH, 'RTRRTstar_run.json'), 'r') as f:
             RTRRT_json = json.load(f)
         # Extract RTRRT cost from second leg
@@ -253,8 +272,17 @@ class TestInterface():
             s1 = states[i]
             s2 = states[i + 1]
             for j in range(len(states[i])):
-                    diff = s1[j] - s2[j]
-                    cost += diff ** 2
+                diff = s1[j] - s2[j]
+                cost += diff ** 2
+        return np.sqrt(cost)
+
+    def calculate_shortest_path_cost(self, states):
+        cost = 0
+        s1 = states[0]
+        s2 = states[-1]
+        for j in range(len(s1)):
+            diff = s1[j] - s2[j]
+            cost += diff ** 2
         return np.sqrt(cost)
 
 

@@ -106,9 +106,11 @@ class DemoInterface(object):
         for i in range(7):
             joint_goal[i] = joint_values[i]
         self.move_group.go(joint_goal, wait)
-        self.move_group.stop()
-        current_joints = self.move_group.get_current_joint_values()
-        return self.all_close(joint_goal, current_joints, 0.01)
+        if wait:
+            self.move_group.stop()
+            current_joints = self.move_group.get_current_joint_values()
+            return self.all_close(joint_goal, current_joints, 0.01)
+        return True
 
     def go_to_start(self, wait=True):
         joint_values = [0, -0.785, 0, -2.356, 0, 1.571, 0.785]

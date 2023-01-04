@@ -32,7 +32,7 @@ class RRTPlannerControlInterface():
     def __init__(self):
         self.d = DemoInterface(node_initialized=True)
         self.d.move_group.set_planner_id("RRTstarkConfigRealTimeTesting")
-        self.d.set_planning_time(0.5)
+        self.d.set_planning_time(2.0)
         self.current_goal = []
         self.init_subscribers()
 
