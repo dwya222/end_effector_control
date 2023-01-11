@@ -45,7 +45,10 @@ class RRTPlannerControlInterface():
     def new_planner_goal(self, goal_msg):
         self.d.move_group.stop()
         self.current_goal = goal_msg.data
+        plan_start_time = rospy.Time.now()
         self.d.go_to_joint_goal(self.current_goal, wait=False)
+        plan_time = (rospy.Time.now() - plan_start_time).to_sec()
+        rospy.logwarn(f"Time to plan: {plan_time}")
 
     def obstacles_changed(self, changed_msg):
         self.d.move_group.stop()

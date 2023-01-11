@@ -24,6 +24,7 @@ EE_CONTROL_PATH = rospack.get_path('end_effector_control')
 PLANNING_DATA_PATH = os.path.join(EE_CONTROL_PATH, 'data', 'planning')
 SUMMARY_COLUMNS = ["Test", "RRTstar cost", "RTRRTstar cost", "Difference"]
 RRT_SUMMARY_COLUMNS = ["Test", "RRTstar shortest path cost", "RRTstar cost", "RRTstar plan time"]
+SERVICE_FEEDBACK_TOPIC = "/move_group/feedback"
 START_STATE = [0, -0.785, 0, -2.356, 0, 1.571, 0.785]
 INITIAL_JOINT_GOAL = [0.9022525451956217, -1.0005812062660042, -1.7602947518592436,
                       -2.7099525294963933, -0.1420045228964755, 3.493668294307763,
@@ -34,7 +35,11 @@ INITIAL_JOINT_GOAL2 = [-0.5578778636322044, 0.908623569993187, -0.38844591131009
 FINAL_JOINT_GOAL = [1.1901980109241104, 0.9615559746057705, -0.5881359185350531,
                     -1.2015471132200233, 0.5281574185640393, 2.0160775068768824,
                     1.3658315499054479]
-SERVICE_FEEDBACK_TOPIC = "/move_group/feedback"
+# (x, y, z, r)
+OBS_IN_BEST_PATH = [(0.4, -0.4, 0.4, 0.05)]
+OBS_OUT_OF_WAY = [(1.4, -1.5, 1.2, 0.05), (1.0, -0.7, 0.2, 0.07), (-1.0, -0.7, 0.2, 0.1),
+                  (-1.0, 0.7, 0.2, 0.05), (0.2, 0.7, 0.6, 0.08)]
+OBS_LIST = OBS_IN_BEST_PATH + OBS_OUT_OF_WAY
 
 class TestInterface():
 
@@ -75,19 +80,23 @@ class TestInterface():
         elif test == "add_obstacle_rrt_only":
             dyn_time = rospy.get_param("/test_interface/dyn_time", 2.0)
             self.run_add_obstacle_rrt_only_test(dyn_time)
+        elif test == "static_obstacle_rrt_only":
+            num_obstacles = rospy.get_param("/test_interface/num_obstacles", 5)
+            self.run_static_obstacle_rrt_only_test(num_obstacles)
         else:
             rospy.logerr(f"Invalid test name: '{test}'")
 
     def setup(self, planner, start=[]):
         start = self.default_start_state if start==[] else start
         rospy.loginfo("Setting up")
-        self.d.remove_object("obstacle")
+        # self.d.remove_object("obstacle")
         self.object_names = self.d.scene.get_known_object_names()
-        # for object_name in self.object_names:
-        #     self.d.remove_object(object_name)
+        for object_name in self.object_names:
+            self.d.remove_object(object_name)
         self.d.set_planner_id("RRTstarkConfigDefault")
         rospy.loginfo(f"Moving to start: {start}")
         self.d.go_to_joint_goal(start)
+        rospy.sleep(1)
         self.d.set_planner_id(planner)
         self.d.set_planning_time(2.0)
 
@@ -181,7 +190,6 @@ class TestInterface():
     def run_add_obstacle_rrt_only_test(self, dyn_time):
         rospy.loginfo("Running RRT only add_obstacle test")
         self.setup("RRTstarkConfigRealTimeTesting")
-        # start nodes for dynamic rrt*
         self.run_rrt_only_add_obstacle(dyn_time)
         success = self.check_service_feedback()
         rospy.loginfo("Saving summary for add_obstacle_rrt_only test")
@@ -196,6 +204,27 @@ class TestInterface():
         rospy.sleep(dyn_time)
         rospy.loginfo("Adding obstacle")
         self.d.publish_object_manual("obstacle", x, y, z, r, 'sphere')
+        sleep_time = 3
+        rospy.loginfo(f"Sleeping for {sleep_time} seconds to allow trajectory to begin")
+        rospy.sleep(sleep_time)
+
+    def run_static_obstacle_rrt_only_test(self, num_obstacles):
+        rospy.loginfo("Running RRT only static_obstacle test")
+        self.setup("RRTstarkConfigRealTimeTesting")
+        self.run_rrt_only_static_obstacle(num_obstacles)
+        success = self.check_service_feedback()
+        rospy.loginfo("Saving summary for static_obstacle_rrt_only test")
+        self.update_rrt_only_summary("static_obstacle", success)
+
+    def run_rrt_only_static_obstacle(self, num_obstacles):
+        for i in range(num_obstacles):
+            (x, y, z, r) = OBS_LIST[i]
+            rospy.loginfo(f"Adding obstacle {i}")
+            self.d.publish_object_manual(f"obstacle{i}", x, y, z, r, 'sphere')
+        rospy.loginfo("Publishing initial joint goal")
+        initial_joint_msg = Float64MultiArray()
+        initial_joint_msg.data = self.initial_joint_goal
+        self.rrt_goal_pub.publish(initial_joint_msg)
         sleep_time = 3
         rospy.loginfo(f"Sleeping for {sleep_time} seconds to allow trajectory to begin")
         rospy.sleep(sleep_time)
