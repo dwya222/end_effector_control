@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <control_msgs/FollowJointTrajectoryAction.h>
 #include <actionlib/client/simple_action_client.h>
+#include <moveit/robot_state/robot_state.h>
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
 #include <moveit_msgs/DisplayRobotState.h>
@@ -9,6 +10,7 @@
 #include <moveit_visual_tools/moveit_visual_tools.h>
 #include <memory>
 
+#define CONTROLLER_TOPIC "/position_joint_trajectory_controller/follow_joint_trajectory"
 typedef actionlib::SimpleActionClient<control_msgs::FollowJointTrajectoryAction> TrajectoryClient;
 
 class RobotArm
@@ -29,11 +31,10 @@ public:
     move_group_interface_ptr_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(planning_group_);
     joint_model_group_ptr_ = move_group_interface_ptr_->getCurrentState()->getJointModelGroup(planning_group_);
 
-    trajectory_client_ = new TrajectoryClient(
-        "/position_joint_trajectory_controller/follow_joint_trajectory", true);
+    trajectory_client_ = new TrajectoryClient(CONTROLLER_TOPIC, true);
 
     while (!trajectory_client_->waitForServer(ros::Duration(5.0))) {
-      ROS_INFO("Waiting for the position_joint_trajectory_controller action server");
+      ROS_INFO_STREAM("Waiting for the " << CONTROLLER_TOPIC << " action server");
     }
   }
 
@@ -78,98 +79,60 @@ public:
 
   void stopExecution()
   {
-    ROS_WARN("Stopping execution");
-    // *** trajectory_client_->cancelGoal() or move_group_interface_ptr_->stop()
-    // causes motor shuddering
+    ROS_WARN("Attempting to stop execution");
+    // move_group_interface_ptr_->stop(); // OR
+    // trajectory_client_->cancelGoal(); // will cause motor shuddering
+    moveit::core::RobotStatePtr current_state = move_group_interface_ptr_->getCurrentState(1.0);
     // Instead of above, get current joint values and send a new goal to smoothly stop
     std::vector<double> current_joint_positions = move_group_interface_ptr_->getCurrentJointValues();
-    control_msgs::FollowJointTrajectoryGoal stop_goal = makeJointGoalMsg(current_joint_positions);
+    control_msgs::FollowJointTrajectoryGoal stop_goal;
+    makeJointGoalMsg(stop_goal, current_joint_positions);
     executeTrajectoryGoal(stop_goal);
   }
 
-  control_msgs::FollowJointTrajectoryGoal makeJointGoalMsg(std::vector<double> positions, double time_from_start=3.0)
+  void makeJointGoalMsg(control_msgs::FollowJointTrajectoryGoal &goal, std::vector<double> positions, int index=0,
+      double time_from_last=2.0)
   {
-    control_msgs::FollowJointTrajectoryGoal goal;
-
-    goal.trajectory.joint_names.push_back("panda_joint1");
-    goal.trajectory.joint_names.push_back("panda_joint2");
-    goal.trajectory.joint_names.push_back("panda_joint3");
-    goal.trajectory.joint_names.push_back("panda_joint4");
-    goal.trajectory.joint_names.push_back("panda_joint5");
-    goal.trajectory.joint_names.push_back("panda_joint6");
-    goal.trajectory.joint_names.push_back("panda_joint7");
-
-    goal.trajectory.points.resize(1);
-    // positions
-    goal.trajectory.points[0].positions.resize(7);
-    goal.trajectory.points[0].positions[0] = positions[0];
-    goal.trajectory.points[0].positions[1] = positions[1];
-    goal.trajectory.points[0].positions[2] = positions[2];
-    goal.trajectory.points[0].positions[3] = positions[3];
-    goal.trajectory.points[0].positions[4] = positions[4];
-    goal.trajectory.points[0].positions[5] = positions[5];
-    goal.trajectory.points[0].positions[6] = positions[6];
-    // velocities
-    goal.trajectory.points[0].velocities.resize(7);
-    for (size_t j = 0; j < 7; j++)
-    {
-      goal.trajectory.points[0].velocities[j] = 0.0;
-    }
-    // Time from start by which this state is to be reached
-    goal.trajectory.points[0].time_from_start = ros::Duration(time_from_start);
-    return goal;
-  }
-
-  void appendJointGoalMsg(control_msgs::FollowJointTrajectoryGoal &goal, int index, std::vector<double> positions,
-      double time_from_last=3.0)
-  {
+    // Resize msg vectors
     goal.trajectory.points.resize(index+1);
-    // positions
     goal.trajectory.points[index].positions.resize(7);
-    goal.trajectory.points[index].positions[0] = positions[0];
-    goal.trajectory.points[index].positions[1] = positions[1];
-    goal.trajectory.points[index].positions[2] = positions[2];
-    goal.trajectory.points[index].positions[3] = positions[3];
-    goal.trajectory.points[index].positions[4] = positions[4];
-    goal.trajectory.points[index].positions[5] = positions[5];
-    goal.trajectory.points[index].positions[6] = positions[6];
-    // velocities
     goal.trajectory.points[index].velocities.resize(7);
-    for (size_t j = 0; j < 7; j++)
-    {
-      goal.trajectory.points[index].velocities[j] = 0.0;
-    }
+
     // Time from start by which this state is to be reached
     goal.trajectory.points[index].time_from_start = ros::Duration(time_from_last * (index+1));
+
+    // Fill msg vectors
+    for (int i=0; i<7; i++)
+    {
+      // Add joint names (if this is the first trajectory)
+      if (index == 0)
+        goal.trajectory.joint_names.push_back("panda_joint" + std::to_string(i+1));
+      // Add positions
+      goal.trajectory.points[index].positions[i] = positions[i];
+      // Add velocities (ALL 0)
+      goal.trajectory.points[index].velocities[i] = 0.0;
+    }
   }
 
   control_msgs::FollowJointTrajectoryGoal getSimpleTrajectory()
   {
     std::vector<double> positions{0.252, -0.454, -0.936, -2.078, 1.529, 2.555, 1.966};
-    control_msgs::FollowJointTrajectoryGoal goal = makeJointGoalMsg(positions);
+    control_msgs::FollowJointTrajectoryGoal goal;
+    makeJointGoalMsg(goal, positions);
     // 2nd joint state
     int index = 1;
     positions.clear();
     positions = {-0.546, 0.019, -0.707, -2.150, 1.762, 1.825, 1.739};
-    appendJointGoalMsg(goal, index, positions);
+    makeJointGoalMsg(goal, positions, index);
 
     // 3rd joint state
     index = 2;
     positions.clear();
     positions = {0.001, -0.786, 0.000, -2.356, 0.001, 1.572, 0.786};
-    appendJointGoalMsg(goal, index, positions);
+    makeJointGoalMsg(goal, positions, index);
 
     return goal;
   }
-
-  /* control_msgs::FollowJointTrajectoryGoal planTrajectory(geometry_msgs::PoseStamped target_pose) */
-  /* { */
-  /*   control_msgs::FollowJointTrajectoryGoal goal_plan; */
-  /*   planning_component_ptr_->setGoal(target_pose, "panda_link8"); */
-  /*   // PlanningComponent::PlanSolution is return type of plan() */
-  /*   goal_plan = planning_components->plan(); */
-  /*   return goal_plan; */
-  /* } */
 
   void executeTrajectoryGoal(control_msgs::FollowJointTrajectoryGoal goal)
   {
@@ -194,28 +157,28 @@ int main(int argc, char** argv) {
   moveit::planning_interface::MoveGroupInterface::Plan planned_path = arm.EEPosePlan(goal_pose);
 
   control_msgs::FollowJointTrajectoryGoal simple_trajectory = arm.getSimpleTrajectory();
-  arm.executePlan(planned_path);
-
-  ros::Duration(2.0).sleep();
-  arm.stopExecution();
-  ROS_INFO("Wait 3 sec");
-  ros::Duration(3.0).sleep();
-
+  /* arm.executePlan(planned_path); */
   arm.executeTrajectoryGoal(simple_trajectory);
-
-  ros::Duration(0.5).sleep();
-  arm.stopExecution();
-  ROS_INFO("Wait 3 sec");
-  ros::Duration(3.0).sleep();
-
-  arm.executeTrajectoryGoal(simple_trajectory);
-
   ros::Duration(1.0).sleep();
   arm.stopExecution();
-  ROS_INFO("Wait 3 sec");
-  ros::Duration(3.0).sleep();
+  /* ROS_INFO("Wait 3 sec"); */
+  /* ros::Duration(3.0).sleep(); */
 
-  arm.executeTrajectoryGoal(simple_trajectory);
+  /* arm.executeTrajectoryGoal(simple_trajectory); */
+
+  /* ros::Duration(0.5).sleep(); */
+  /* arm.stopExecution(); */
+  /* ROS_INFO("Wait 3 sec"); */
+  /* ros::Duration(3.0).sleep(); */
+
+  /* arm.executeTrajectoryGoal(simple_trajectory); */
+
+  /* ros::Duration(1.0).sleep(); */
+  /* arm.stopExecution(); */
+  /* ROS_INFO("Wait 3 sec"); */
+  /* ros::Duration(3.0).sleep(); */
+
+  /* arm.executeTrajectoryGoal(simple_trajectory); */
 
   while (!arm.getState().isDone() && ros::ok())
   {

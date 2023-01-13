@@ -113,8 +113,8 @@ class DemoInterface(object):
         return True
 
     def go_to_start(self, wait=True):
-        joint_values = [0, -0.785, 0, -2.356, 0, 1.571, 0.785]
-        return self.go_to_joint_goal(joint_values, wait)
+        (success, start_plan, planning_time, error_code) = self.plan_to_start()
+        self.move_group.execute(start_plan)
 
     def plan_to_start(self):
         joint_values = [0, -0.785, 0, -2.356, 0, 1.571, 0.785]
