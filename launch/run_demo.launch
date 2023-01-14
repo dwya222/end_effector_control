@@ -1,10 +1,21 @@
 <?xml version="1.0" ?>
 <launch>
-  <include file="$(find panda_moveit_config)/launch/panda_control_moveit_rviz.launch">
-    <arg name="robot_ip" default="172.16.0.2"/>
-    <arg name="load_gripper" default="true"/>
-    <arg name="setup" default="staged"/>
+  <arg name="simulation" default="false" />
+  <arg name="run_rviz" default="true" />
+
+  <param name="simulation" value="$(arg simulation)"/>
+
+  <include unless="$(arg simulation)" file="$(find panda_moveit_config)/launch/panda_control_moveit_rviz.launch">
+    <arg name="robot_ip" default="172.16.0.2" />
+    <arg name="load_gripper" default="true" />
+    <arg name="setup" default="staged" />
+    <arg name="launch_rviz" value="$(arg run_rviz)" />
   </include>
-  <node pkg="end_effector_control" type="follow_point_subscriber.py" name="follow_point_node"/>
-  <node pkg="camera" type="target_publisher" name="camera_node"/>
+
+  <include if="$(arg simulation)" file="$(find end_effector_control)/launch/demo.launch">
+    <arg name="run_rviz" value="$(arg run_rviz)" />
+  </include>
+
+  <node pkg="end_effector_control" type="follow_point_subscriber.py" name="follow_point_node" output="screen" />
+  <node unless="$(arg simulation)" pkg="camera" type="target_publisher" name="camera_node" output="screen" />
 </launch>
