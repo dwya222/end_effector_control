@@ -171,6 +171,8 @@ add_executable(create_goal_test src/create_goal_test.cpp)
 target_link_libraries(create_goal_test ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 add_executable(new_goal_publisher src/new_goal_publisher.cpp)
 target_link_libraries(new_goal_publisher ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+add_executable(continuous_collision_checker src/continuous_collision_checker.cpp)
+target_link_libraries(continuous_collision_checker ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 ## add_dependencies(simple_trajectory ${action_lib
 ## install(TARGETS simple_trajectory DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 

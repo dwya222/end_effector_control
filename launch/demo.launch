@@ -1,5 +1,9 @@
 <launch>
 
+  <!-- By default this demo launch file will be run in simulation -->
+  <arg name="simulation" default="true" />
+  <param name="simulation" value="$(arg simulation)"/>
+  <!-- lanch prefix for debugging -->
   <arg name="launch_prefix" default="xterm -fa 'Monospace' -fs 10 -e gdb -ex run --args"/>
   <!-- By default, we do not start a database (it can be large) -->
   <arg name="db" default="false" />

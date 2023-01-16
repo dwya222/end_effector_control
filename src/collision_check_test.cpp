@@ -6,6 +6,8 @@
 #include <moveit/robot_state/conversions.h>
 //#include <moveit/planning_scene/planning_scene.h>
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
+#include <moveit/collision_detection_bullet/collision_env_bullet.h>
+#include <moveit/collision_detection_bullet/collision_detector_allocator_bullet.h>
 #include <moveit/kinematic_constraints/utils.h>
 #include <sensor_msgs/JointState.h>
 #include <moveit_msgs/RobotState.h>
@@ -16,9 +18,9 @@
 #include <ros/serialization.h>
 
 
-class RobotArm
+class CollisionChecker
 {
-private:
+protected:
   robot_model_loader::RobotModelLoaderPtr rm_loader_ptr;
   const robot_model::RobotModelPtr& kinematic_model_ptr;
   planning_scene_monitor::PlanningSceneMonitorPtr psm_ptr;
@@ -29,7 +31,7 @@ private:
   moveit::core::RobotState& current_state;
 
 public:
-  RobotArm(ros::NodeHandle nh) :
+  CollisionChecker(ros::NodeHandle nh) :
     rm_loader_ptr(std::make_shared<robot_model_loader::RobotModelLoader>("robot_description")),
     kinematic_model_ptr(rm_loader_ptr->getModel()),
     //planning_scene_ptr(std::make_shared<planning_scene::PlanningScene>(kinematic_model_ptr)),
@@ -168,6 +170,64 @@ public:
 
 };
 
+class ContinuousCollisionChecker
+{
+protected:
+  robot_model_loader::RobotModelLoaderPtr rm_loader_ptr;
+  const robot_model::RobotModelPtr& kinematic_model_ptr;
+  planning_scene_monitor::PlanningSceneMonitorPtr psm_ptr;
+  kinematic_constraints::KinematicConstraintSetPtr kinematic_constraint_set_ptr;
+  const std::string group;
+  ros::NodeHandle nh_;
+  ros::Publisher joint_position_pub;
+  moveit::core::RobotState& current_state;
+
+public:
+  ContinuousCollisionChecker(ros::NodeHandle nh) :
+    rm_loader_ptr(std::make_shared<robot_model_loader::RobotModelLoader>("robot_description")),
+    kinematic_model_ptr(rm_loader_ptr->getModel()),
+    //planning_scene_ptr(std::make_shared<planning_scene::PlanningScene>(kinematic_model_ptr)),
+    psm_ptr(std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(rm_loader_ptr)),
+    group("panda_arm"), current_state(psm_ptr->getPlanningScene()->getCurrentStateNonConst())
+    {
+      psm_ptr->startSceneMonitor();
+      psm_ptr->startWorldGeometryMonitor();
+      psm_ptr->startStateMonitor();
+      bool success = psm_ptr->requestPlanningSceneState("/get_planning_scene");
+      kinematic_constraint_set_ptr = std::make_shared<kinematic_constraints::KinematicConstraintSet>(kinematic_model_ptr);
+      nh_ = nh;
+      joint_position_pub = nh_.advertise<sensor_msgs::JointState>("/joint_states", 100);
+    }
+
+  bool checkCollision()
+  {
+    collision_detection::CollisionRequest req;
+    collision_detection::CollisionResult res;
+    /* auto planning_scene = std::unique_ptr<planning_scene::PlanningScene>(psm_ptr->getPlanningScene()); */
+    auto planning_scene = psm_ptr->getPlanningScene();
+    planning_scene->setActiveCollisionDetector(collision_detection::CollisionDetectorAllocatorBullet::create(),
+                                               true /* exclusive */);
+    // Set robot states
+    robot_state::RobotState& state = planning_scene->getCurrentStateNonConst();
+    robot_state::RobotState& state2 = planning_scene->getCurrentStateNonConst();
+    state.setToDefaultValues();
+    // set state joint values:
+    std::vector<double> start_pos { 0.00, -0.785, 0.00, -2.356, 0.00, 1.571, 0.785 };
+    std::vector<double> end_pos { -0.046, 0.0783, 0.0495, -1.406, 0.005, 1.483, 0.7885 };
+    for (int i=0; i<=start_pos.size(); i++)
+    {
+      state.setJointPositions("panda_joint" + std::to_string(i+1), &start_pos[i]);
+      state2.setJointPositions("panda_joint" + std::to_string(i+1), &end_pos[i]);
+    }
+    state.update();
+    state2.update();
+    planning_scene->getCollisionEnv()->checkRobotCollision(req, res, state2, state);
+    return res.collision;
+  }
+};
+
+
+
 int main(int argc, char** argv)
 {
   ros::init(argc, argv, "collision_check_test");
@@ -175,9 +235,17 @@ int main(int argc, char** argv)
   ros::AsyncSpinner spinner(1);
   spinner.start();
 
-  RobotArm robot_arm(nh);
-  robot_arm.addJointContstraints();
-  robot_arm.outputJointConstraints();
-  /* robot_arm.validTestInterface(); */
-  robot_arm.collisionCheckLoop();
+  /* CollisionChecker collision_checker(nh); */
+  /* collision_checker.addJointContstraints(); */
+  /* collision_checker.outputJointConstraints(); */
+  /* collision_checker.validTestInterface(); */
+  /* collision_checker.collisionCheckLoop(); */
+  ContinuousCollisionChecker ccc(nh);
+  while (ros::ok())
+  {
+    char key;
+    std::cout << "Press enter to check again\n";
+    std::cin >> key;
+    ROS_INFO_STREAM((ccc.checkCollision() ? "In collision." : "Not in collision."));
+  }
 }
