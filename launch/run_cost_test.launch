@@ -18,12 +18,12 @@
   <node if="$(eval arg('test')=='add_obstacle_rrt_only')" pkg="end_effector_control"
     type="obstacle_changed_detector.py" name="obstacle_changed_detector" output="screen"/>
   <node if="$(eval arg('test')=='add_obstacle_rrt_only')" pkg="end_effector_control"
-    type="RRT_dynamic_interface.py" name="RRT_dynamic_interface" output="screen"/>
+    type="RRT_star_monitor.py" name="RRT_star_monitor" output="screen"/>
 
   <node if="$(eval arg('test')=='static_obstacle_rrt_only')" pkg="end_effector_control"
     type="obstacle_changed_detector.py" name="obstacle_changed_detector" output="screen"/>
   <node if="$(eval arg('test')=='static_obstacle_rrt_only')" pkg="end_effector_control"
-    type="RRT_dynamic_interface.py" name="RRT_dynamic_interface" output="screen"/>
+    type="RRT_star_monitor.py" name="RRT_star_monitor" output="screen"/>
 
   <node pkg="end_effector_control" type="test_interface.py" name="test_interface_node"
     output="screen"/>

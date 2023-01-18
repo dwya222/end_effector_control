@@ -16,8 +16,6 @@ from std_msgs.msg import Float64MultiArray
 from std_msgs.msg import Bool
 
 from demo_interface import DemoInterface
-from obstacle_changed_detector import ObstaclesChangedDetector
-from RRT_dynamic_interface import RRTPlannerControlInterface
 
 rospack = rospkg.RosPack()
 EE_CONTROL_PATH = rospack.get_path('end_effector_control')
