@@ -43,10 +43,10 @@ if __name__ == "__main__":
             continue
         if response == 'a':
             (point, radius) = requestPoint()
-            d.publish_object("obstacle", point, radius, type='sphere')
+            d.publish_object("obstacle", point, radius, primitive='sphere')
         if response == 'r':
             remove_obstacle(d)
         if response == 'ra':
             (point, radius) = requestPoint()
             remove_obstacle(d)
-            d.publish_object("obstacle", point, radius, type='sphere')
+            d.publish_object("obstacle", point, radius, primitive='sphere')

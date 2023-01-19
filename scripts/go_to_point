@@ -1,0 +1,33 @@
+#!/usr/bin/env python3
+
+import rospy
+from demo_interface import DemoInterface
+from geometry_msgs.msg import Point
+
+(PX, PY, PZ) = (0.5, 0.2, 0.3)
+
+def main():
+  mover = DemoInterface()
+  point_msg = Point()
+  manual = 'm' == input("Manually enter points or use defaults? Enter 'm' for manual")
+  while not rospy.is_shutdown():
+      if manual:
+          initial = input("Enter x position of point (or 's' for start): ")
+          if initial=="s":
+              mover.go_to_start(wait=False)
+          else:
+              point_msg.x = float(init)
+              point_msg.y = float(input("Enter y position of point: "))
+              point_msg.z = float(input("Enter z position of point: "))
+              mover.go_to_point(point_msg, wait=False)
+      else:
+          query = int(input("Enter 1 to plan and go to start or 2 to plan and go to default goal position: "))
+          if query == 1:
+              mover.go_to_start(wait=False)
+          if query == 2:
+              point_msg = Point(PX, PY, PZ)
+              mover.go_to_point(point_msg, wait=False)
+
+
+if __name__ == '__main__':
+  main()

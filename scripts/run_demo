@@ -3,8 +3,8 @@
 from demo_interface import DemoInterface
 
 def main():
-  mover = DemoInterface()
-  mover.listen_for_point()
+  di = DemoInterface()
+  di.listen_for_goal()
 
 if __name__ == '__main__':
   main()

@@ -42,7 +42,7 @@ def sample_env(origin, num_cups=12, iter=5):
             result = [id, 'undetermined','undetermined','undetermined','undetermined']
             plan_msg = ['undetermined','undetermined','undetermined','undetermined']
             for j,approach in enumerate(approaches):
-                joint_trajectory_list[j] = d.planning_test(cup_points[i], approach=approach)
+                joint_trajectory_list[j] = d.plan_to_point(cup_points[i], approach=approach)
                 if joint_trajectory_list[j].joint_trajectory.points:
                     result[j+1] = "Success"
                 else:

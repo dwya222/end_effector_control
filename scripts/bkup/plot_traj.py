@@ -24,7 +24,7 @@ if __name__ == "__main__":
     point.x = 0.5
     point.y = 0.2
     point.z = 0.6
-    # plan = d.planning_test(point)
+    # plan = d.plan_to_point(point)
     joint_nums = [1,2,3,4,5]
     # [plan1, plan2, start1, start2, last_point_plan1] = d.change_traj()
     [plan1, plan2, start1, start2] = d.change_traj()

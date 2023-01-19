@@ -21,13 +21,13 @@ def main():
               point_msg.x = float(init)
               point_msg.y = float(input("Enter y position of point: "))
               point_msg.z = float(input("Enter z position of point: "))
-              mover.follow_point(point_msg, grasp=False)
+              mover.plan_to_point(point_msg)
       else:
-          input("Press enter to plan to default point (0.4, -0.4, 0.6)")
+          input("Press enter to plan to default point (0.5, -0.4, 0.6)")
           point_msg.x = 0.5
           point_msg.y = -0.4
           point_msg.z = 0.6
-          mover.follow_point(point_msg, grasp=False)
+          mover.plan_to_point(point_msg)
           break
 
 

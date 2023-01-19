@@ -27,5 +27,5 @@ if __name__ == "__main__":
         points = []
         for topic in point_topics:
             points.append(rospy.wait_for_message(topic, Point))
-            d.publish_object(f"show_point{i}", point, 0.015, type='sphere')
+            d.publish_object(f"show_point{i}", point, 0.015, primitive='sphere')
             i += 1

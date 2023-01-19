@@ -19,7 +19,7 @@ JOINT_POSITION_SAMPLES_DIR = os.path.join(EE_CONTROL_PATH, 'scripts',
 RAW_TOPIC = "/raw_ee_position"
 
 
-class RoboDemoCalibrator:
+class DemoCalibrator:
     def __init__(self):
         self.mover = DemoInterface()
         self.joint_position_samples = self.get_joint_position_samples(JOINT_POSITION_SAMPLES_DIR)
@@ -103,5 +103,5 @@ class RoboDemoCalibrator:
 
 
 if __name__ == "__main__":
-    rdc = RoboDemoCalibrator()
-    rdc.calibrate()
+    dc = DemoCalibrator()
+    dc.calibrate()

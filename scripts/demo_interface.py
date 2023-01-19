@@ -10,7 +10,6 @@ import moveit_commander
 import actionlib
 from franka_gripper.msg import MoveGoal, MoveAction
 from geometry_msgs.msg import Point, Pose, PoseStamped
-from moveit_msgs.msg import DisplayTrajectory, PlanningScene
 from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryGoal
 from trajectory_msgs.msg import JointTrajectoryPoint
 from sensor_msgs.msg import JointState
@@ -20,33 +19,69 @@ CONTROLLER_TOPIC = "/position_joint_trajectory_controller/follow_joint_trajector
 DESIRED_JOINT_STATE_TOPIC = "/joint_states_desired"
 VELOCITY_MULTIPLIER = 0.2
 MAX_COMMAND_POINT_DIFF = 0.05
+START_JOINT_VALUES = [0, -0.785, 0, -2.356, 0, 1.571, 0.785]
+# Size of goal box
+GOAL_SIZE = (0.05, 0.06, 0.055)
+# Offset to account for undetected object depth as the camera detects
+# a point on the front surface of the goal box
+(GOAL_OFFSET_X, GOAL_OFFSET_Y, GOAL_OFFSET_Z) = (-0.03, 0, 0)
 
 
 class DemoInterface(object):
     """Demo Interface"""
     def __init__(self, node_initialized=False):
-        super(DemoInterface, self).__init__()
-        moveit_commander.roscpp_initialize(sys.argv)
         if not node_initialized:
             rospy.init_node('demo_interface', anonymous=True)
-        self.robot = moveit_commander.RobotCommander()
-        self.scene = moveit_commander.PlanningSceneInterface()
-        self.group_name = "panda_arm"
-        self.move_group = moveit_commander.MoveGroupCommander(self.group_name)
-        # self.set_planner_id("RTRRTstarkConfigDefault")
-        self.set_planner_id("RRTstarkConfigDefault")
-        self.set_planning_time(0.5)
-        self.move_group.set_end_effector_link("panda_hand")
-        self.prev_command_point = None
-        self.simulation = rospy.get_param('/simulation', False)
+        self.set_parameters()
+        self.setup_moveit()
+        self.set_ee_approach_dict()
+        self.prev_goal_point = None
         if self.simulation:
-            rospy.logwarn(f"Running demo in simulation")
+            rospy.logwarn("Running demo in simulation")
         else:
-            rospy.logwarn(f"Running demo on hardware")
-            self.hardware_setup()
+            rospy.logwarn("Running demo on hardware")
+            self.create_hardware_controller_clients()
 
-    def hardware_setup(self):
-        # Setup joint and gripper controller clients
+    def set_parameters(self):
+        self.group_name = rospy.get_param('/group_name', "panda_arm")
+        self.planner_id = rospy.get_param('/planner_id', "RRTstarkConfigDefault")
+        self.simulation = rospy.get_param('/simulation', False)
+        self.planning_time = rospy.get_param('/planning_time', 0.5)
+        self.end_effector_link = rospy.get_param('/end_effector_link', "panda_hand")
+        self.goal_object_topic = rospy.get_param('/goal_object_topic', '/goal_object_position')
+        self.start_joint_values = START_JOINT_VALUES
+        self.goal_size = GOAL_SIZE
+        self.goal_offset = Point(GOAL_OFFSET_X, GOAL_OFFSET_Y, GOAL_OFFSET_Z)
+
+    def setup_moveit(self):
+        moveit_commander.roscpp_initialize(sys.argv)
+        self.scene = moveit_commander.PlanningSceneInterface()
+        self.move_group = moveit_commander.MoveGroupCommander(self.group_name)
+        self.set_planner_id(self.planner_id)
+        self.set_planning_time(self.planning_time)
+        self.move_group.set_end_effector_link(self.end_effector_link)
+
+    def set_planner_id(self, planner_id):
+        self.move_group.set_planner_id(planner_id)
+
+    def set_planning_time(self, planning_time):
+        self.move_group.set_planning_time(planning_time)
+
+    @property
+    def get_planning_time(self):
+        return self.move_group.get_planning_time()
+
+    def set_ee_approach_dict(self):
+        rpy_rot_y90 = R.from_euler('y', 90, degrees=True)
+        self.ee_approach_dict = {
+                "top": R.from_euler('y', 0, degrees=True) * R.from_euler('x', 180, degrees=True),
+                "front": rpy_rot_y90,
+                "back": rpy_rot_y90 * R.from_euler('x', 180, degrees=True),
+                "left": rpy_rot_y90 * R.from_euler('x', 90, degrees=True),
+                "right": rpy_rot_y90 * R.from_euler('x', -90, degrees=True)
+                }
+
+    def create_hardware_controller_clients(self):
         self.trajectory_client = actionlib.SimpleActionClient(CONTROLLER_TOPIC,
                                                               FollowJointTrajectoryAction)
         while not self.trajectory_client.wait_for_server(rospy.Duration(2.0)):
@@ -57,35 +92,6 @@ class DemoInterface(object):
         self.close_goal = MoveGoal(width=0.054, speed=0.08)
         self.open_goal = MoveGoal(width=0.08, speed=0.08)
 
-    def set_planner_id(self, planner_id):
-        self.move_group.set_planner_id(planner_id)
-
-    def set_planning_time(self, planning_time):
-        self.move_group.set_planning_time(planning_time)
-
-    def get_planning_time(self):
-        return self.move_group.get_planning_time()
-
-    def all_close(self, goal, actual, tolerance):
-        """
-        Convenience method for testing if a list of values are within a
-        tolerance of their counterparts in another list
-        @param: goal       A list of floats, a Pose or a PoseStamped
-        @param: actual     A list of floats, a Pose or a PoseStamped
-        @param: tolerance  A float
-        @returns: bool
-        """
-        if type(goal) is list:
-            for index in range(len(goal)):
-                if abs(actual[index] - float(goal[index])) > tolerance:
-                    return False
-        elif type(goal) is PoseStamped:
-            return self.all_close(goal.pose, actual.pose, tolerance)
-        elif type(goal) is Pose:
-            return self.all_close(pose_to_list(goal), pose_to_list(actual),
-                                  tolerance)
-        return True
-
     def open_gripper(self, wait=True):
         self.gripper_client.send_goal(self.open_goal)
         self.gripper_client.wait_for_result(rospy.Duration.from_sec(5.0))
@@ -94,95 +100,62 @@ class DemoInterface(object):
         self.gripper_client.send_goal(self.close_goal)
         self.gripper_client.wait_for_result(rospy.Duration.from_sec(5.0))
 
+    def plan_to_start(self):
+        return self.plan_to_joint_goal(self.start_joint_values)
+
     def plan_to_joint_goal(self, joint_values):
+        """Plan to joint goal.
+
+        Returns:
+          Result tuple (bool, RobotTrajectory, float, MoveItErrorCode):
+            (success, path, planning time, error code)
+        """
         self.move_group.set_joint_value_target(joint_values)
-        # Note returns a tuple: (Success, Trajectory Msg, Planning Time, Error Code)
         return self.move_group.plan()
 
-    def go_to_joint_goal(self, joint_values, wait=True):
-        joint_goal = self.move_group.get_current_joint_values()
-        for i in range(7):
-            joint_goal[i] = joint_values[i]
-        self.move_group.go(joint_goal, wait)
-        if wait:
-            self.smooth_stop()
-            current_joints = self.move_group.get_current_joint_values()
-            return self.all_close(joint_goal, current_joints, 0.01)
-        return True
+    def plan_to_point(self, point, approach="top"):
+        """Plan to point goal with specified end-effector approach.
 
-    def go_to_start(self, wait=True):
-        (success, start_plan, planning_time, error_code) = self.plan_to_start()
-        self.move_group.execute(start_plan)
+        Returns:
+          Result tuple (bool, RobotTrajectory, float, MoveItErrorCode):
+            (success, path, planning time, error code)
 
-    def plan_to_start(self):
-        joint_values = [0, -0.785, 0, -2.356, 0, 1.571, 0.785]
-        return self.plan_to_joint_goal(joint_values)
+        Raises:
+          KeyError: If invalid approach arg provided.
+        """
+        # Adding goal object to scene so we plan around it
+        self.publish_goal_object(point)
+        pose_goal = self.create_grasp_pose_msg(point, approach=approach)
+        self.move_group.set_pose_target(pose_goal)
+        return self.move_group.plan()
 
-    def follow_point(self, point, grasp=False, wait=True):
-        # Stop the robot before planning new path
-        self.smooth_stop()
-        # Adding object as obstacle so we don't hit it as we approach
-        # .055 x .065 x .065
-        self.publish_object("goal", point, size=(0.05, 0.06, 0.055), offset=(-0.03, 0, 0))
-        pose_goal = Pose()
-        move_group = self.move_group
-        if grasp:
-            theta = 90
-            rpy_rot = R.from_euler('y', theta, degrees=True)
-        else:
+    def create_grasp_pose_msg(self, point, approach="top"):
+        """Create pose msg based on object point and desired approach.
+
+        Args:
+          point (Point): Point in space of the object
+          approach (str): Descriptor of the desired approach
+            orientation of the end effector
+
+        Returns:
+          Pose: End effector pose to grasp object at given position and
+            desired approach
+        """
+        pose = Pose()
+        if approach == "interpolated":
             theta = self.get_angle(float(point.z))
-            rpy_rot = (R.from_euler('y', 0, degrees=True) *
-                       R.from_euler('x', 180, degrees=True))
+            rpy_rot = (R.from_euler('y', theta, degrees=True)
+                       * R.from_euler('x', 180, degrees=True))
+        else:
+            rpy_rot = self.ee_approach_dict[approach]
         # Move x point back since we want to focus on the center of the
         # box, but we are given the position of the center of the front
         # side (The box in use has a depth of about 6 cm)
-        pose_goal.position.x = float(point.x) - 0.03
-        pose_goal.position.y = float(point.y)
-        pose_goal.position.z = float(point.z)
+        pose.position = point
         quat = rpy_rot.as_quat()
-        pose_goal.orientation.x = float(quat[0])
-        pose_goal.orientation.y = float(quat[1])
-        pose_goal.orientation.z = float(quat[2])
-        pose_goal.orientation.w = float(quat[3])
-        current_pose = move_group.get_current_pose().pose
-        if self.all_close(pose_goal, current_pose, 0.03):
-            return
-        move_group.set_pose_target(pose_goal)
-        move_group.go(wait)
-
-    def planning_test(self, point, approach="top"):
-        # Adding object as obstacle so we don't hit it as we approach
-        self.publish_object("goal", point, size=0.0275, type='sphere')
-        pose_goal = Pose()
-        move_group = self.move_group
-        if approach == "top":
-            rpy_rot = R.from_euler('y', 0, degrees=True) * R.from_euler('x', 180, degrees=True)
-        elif approach == "front":
-            theta = 90
-            rpy_rot = R.from_euler('y', theta, degrees=True)
-        elif approach == "left":
-            theta = 90
-            rpy_rot = R.from_euler('y', theta, degrees=True) * R.from_euler('x', 90, degrees=True)
-        elif approach == "right":
-            theta = 90
-            rpy_rot = R.from_euler('y', theta, degrees=True) * R.from_euler('x', -90, degrees=True)
-        elif approach == "back":
-            theta = 90
-            rpy_rot = R.from_euler('y', theta, degrees=True) * R.from_euler('x', 180, degrees=True)
-        else:
-            rospy.logerr("Invalid approach parameter. Exiting.")
-            return
-        pose_goal.position.x = point.x
-        pose_goal.position.y = point.y
-        pose_goal.position.z = point.z
-        quat = rpy_rot.as_quat()
-        pose_goal.orientation.x = quat[0]
-        pose_goal.orientation.y = quat[1]
-        pose_goal.orientation.z = quat[2]
-        pose_goal.orientation.w = quat[3]
-        move_group.set_pose_target(pose_goal)
-        # Note returns a tuple: (Success, Trajectory Msg, Planning Time, Error Code)
-        return move_group.plan()
+        pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w = (
+                quat[0], quat[1], quat[2], quat[3])
+        return pose
 
     def get_angle(self, height):
         heights = np.linspace(0, 1, num=20, endpoint=True)
@@ -190,42 +163,37 @@ class DemoInterface(object):
         f = interp1d(heights, angles)
         return float(f(height))
 
-    def publish_object_manual(self, name, x, y, z, size, type='box'):
-        # May need to sleep for a second before using this after initializing Demo
-        object_pose = PoseStamped()
-        object_pose.header.frame_id = self.robot.get_planning_frame()
-        object_pose.pose.position.x = float(x)
-        object_pose.pose.position.y = float(y)
-        object_pose.pose.position.z = float(z)
-        object_pose.pose.orientation.x = 0.0
-        object_pose.pose.orientation.y = 0.0
-        object_pose.pose.orientation.z = 0.0
-        object_pose.pose.orientation.w = 1.0
-        if type == 'box':
-            self.scene.add_box(name, object_pose, size=size)
-        else:
-            self.scene.add_sphere(name, object_pose, radius=size)
+    def go_to_start(self, wait=True):
+        self.go_to_joint_goal(self.start_joint_values, wait=wait)
 
-    def publish_object(self, name, point, size, type='box', offset=None, remove=False):
-        # May need to sleep for a second before using this after initializing Demo
+    def go_to_joint_goal(self, joint_values, wait=True):
+        # Stop the robot before planning & executing new path
+        self.smooth_stop()
+        self.move_group.go(joint_values, wait)
+
+    def go_to_point(self, point, approach="top", wait=True):
+        # Stop the robot before planning & executing new path
+        self.smooth_stop()
+        # Adding goal object to scene so we plan around it
+        self.publish_goal_object(point)
+        pose_goal = self.create_grasp_pose_msg(point, approach=approach)
+        self.move_group.set_pose_target(pose_goal)
+        self.move_group.go(wait)
+
+    def publish_goal_object(self, point):
+        self.publish_object("goal", point, size=self.goal_size)
+
+    def publish_object_xyz(self, name, x, y, z, size, primitive='box', remove=False):
+        point = Point(x, y, z)
+        self.publish_object(name, point, size, primitive=primitive, remove=remove)
+
+    def publish_object(self, name, point, size, primitive='box', remove=False):
         if remove:
             self.remove_object(name)
         object_pose = PoseStamped()
-        object_pose.header.frame_id = self.robot.get_planning_frame()
-        # Add x offset as April tag point detection is at the front of box
-        if offset is None:
-            object_pose.pose.position.x = float(point.x)
-            object_pose.pose.position.y = float(point.y)
-            object_pose.pose.position.z = float(point.z)
-        else:
-            object_pose.pose.position.x = float(point.x) + offset[0]
-            object_pose.pose.position.y = float(point.y) + offset[1]
-            object_pose.pose.position.z = float(point.z) + offset[2]
-        object_pose.pose.orientation.x = 0.0
-        object_pose.pose.orientation.y = 0.0
-        object_pose.pose.orientation.z = 0.0
-        object_pose.pose.orientation.w = 1.0
-        if type == 'box':
+        object_pose.header.frame_id = self.move_group.get_planning_frame()
+        object_pose.pose.position = point
+        if primitive == 'box':
             self.scene.add_box(name, object_pose, size=size)
         else:
             self.scene.add_sphere(name, object_pose, radius=size)
@@ -233,27 +201,36 @@ class DemoInterface(object):
     def remove_object(self, name):
         self.scene.remove_world_object(name)
 
-    def listen_for_point(self):
-        rospy.Subscriber("/point_command", Point, callback=self.check_point_position_diff,
+    def listen_for_goal(self):
+        rospy.Subscriber(self.goal_object_topic, Point, callback=self.filter_detection_noise,
                          queue_size=1)
         rospy.spin()
 
-    def check_point_position_diff(self, point):
-        if self.prev_command_point:
-            diff = self.calc_point_diff(self.prev_command_point, point)
+    def filter_detection_noise(self, goal_point):
+        if self.prev_goal_point:
+            diff = self.euclidean_distance(self.prev_goal_point, goal_point)
             if diff > MAX_COMMAND_POINT_DIFF:
-                rospy.loginfo("Sending new follow command, goal move detected")
-                self.follow_point(point, wait=False)
+                rospy.loginfo("Goal point movement detected, attempting new plan")
+                goal_point = self.offset_point(goal_point, self.goal_offset)
+                self.go_to_point(goal_point, wait=False)
         else:
-            rospy.loginfo("Sending follow command, first goal point received")
-            self.follow_point(point, wait=False)
-        self.prev_command_point = point
+            rospy.loginfo("First goal point received, attempting to plan")
+            goal_point = self.offset_point(goal_point, self.goal_offset)
+            self.go_to_point(goal_point, wait=False)
+        self.prev_goal_point = goal_point
 
-    def calc_point_diff(self, point1, point2):
+    def euclidean_distance(self, point1, point2):
         x_diff = point2.x - point1.x
         y_diff = point2.y - point1.y
         z_diff = point2.z - point2.z
         return np.sqrt(x_diff**2 + y_diff**2 + z_diff**2)
+
+    def offset_point(self, point, offset):
+        point_offset = Point()
+        point_offset.x = point.x + offset.x
+        point_offset.y = point.y + offset.y
+        point_offset.z = point.z + offset.z
+        return point_offset
 
     def smooth_stop(self):
         if self.simulation:
@@ -287,3 +264,28 @@ class DemoInterface(object):
 
         goal.trajectory.points.append(trajectory_point)
         return goal
+
+    def all_close(self, goal, actual, tolerance):
+        """
+        Convenience method for testing if a list of values are within a
+        tolerance of their counterparts in another list.
+
+        Args:
+          goal (list): A list of goal floats, a Pose or a PoseStamped
+          actual (list): A list of floats, a Pose or a PoseStamped
+          tolerance (float): Allowed difference between goal and actual
+            values
+
+        Returns:
+          Bool: Successful if true
+        """
+        if type(goal) is list:
+            for index in range(len(goal)):
+                if abs(actual[index] - float(goal[index])) > tolerance:
+                    return False
+        elif type(goal) is PoseStamped:
+            return self.all_close(goal.pose, actual.pose, tolerance)
+        elif type(goal) is Pose:
+            return self.all_close(pose_to_list(goal), pose_to_list(actual),
+                                  tolerance)
+        return True

@@ -27,7 +27,7 @@ def pointMsg(x, y, z):
 
 def add_obstacle(demo_interface_object, point, radius):
     rospy.loginfo("Adding obstacle now")
-    d.publish_object("obstacle", point, radius, type='sphere')
+    d.publish_object("obstacle", point, radius, primitive='sphere')
 
 def remove_obstacle(demo_interface_object):
     rospy.loginfo("Removing obstacle now")
@@ -52,8 +52,8 @@ if __name__ == "__main__":
     rospy.loginfo(f"Starting thread to add obstacle back in {delay} seconds")
     add_obstacle_timer.start()
 
-    rospy.loginfo(f"Starting planning for {d.get_planning_time()} seconds")
-    (success, plan, planning_time, error_code) = (d.planning_test(point))
+    rospy.loginfo(f"Starting planning for {d.get_planning_time} seconds")
+    (success, plan, planning_time, error_code) = (d.plan_to_point(point))
 
     rospy.loginfo(f"Success status: {success}")
 

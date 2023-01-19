@@ -4,8 +4,8 @@
 This node provides a planning & control interface to allow use of a
 static planner (like RRTstar) in a dynamic environment.
 
-It subscribes to the "new_planner_goal" and "obstacles_changed" topics
-for dynamic information about the environment.
+Subscribes to the "new_planner_goal" and "obstacles_changed" topics for
+dynamic information about the environment.
 
 
 """
@@ -66,26 +66,6 @@ class RRTstarMonitor():
         rospy.logwarn(f"Time to plan: {plan_time}")
         with open(PLAN_TIME_FILE_PATH, 'w') as f:
             f.write(str(plan_time))
-
-    def get_stop_goal(self):
-        goal = FollowJointTrajectoryGoal()
-        trajectory_point = JointTrajectoryPoint()
-        desired_joint_state = rospy.wait_for_message(DESIRED_JOINT_STATE_TOPIC, JointState)
-        positions = desired_joint_state.position
-        velocities = desired_joint_state.velocity
-        trajectory_point.time_from_start = rospy.Duration(0.5)
-
-        # Fill msg vectors
-        for i in range(7):
-            # Add joint names
-            goal.trajectory.joint_names.append(f"panda_joint{i+1}")
-            # Add positions
-            trajectory_point.positions.append(positions[i] + (velocities[i] * VELOCITY_MULTIPLIER))
-            # Add velocities (ALL 0)
-            trajectory_point.velocities.append(0.0)
-
-        goal.trajectory.points.append(trajectory_point)
-        return goal
 
 
 if __name__ == "__main__":

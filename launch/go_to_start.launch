@@ -5,5 +5,5 @@
     <arg name="load_gripper" default="true"/>
     <arg name="setup" default="staged"/>
   </include>
-  <node pkg="end_effector_control" type="go_to_start.py" name="go_to_start_node"/>
+  <node pkg="end_effector_control" type="go_to_start" name="go_to_start_node"/>
 </launch>

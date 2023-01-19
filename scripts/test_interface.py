@@ -136,7 +136,7 @@ class TestInterface():
         self.setup("RTRRTstarkConfigDefault")
         (x, y, z, r) = (0.4, -0.4, 0.4, 0.05)
         log_timer = th.Timer(dyn_time, rospy.loginfo, args=("Adding new obstacle now",))
-        add_obstacle_timer = th.Timer(dyn_time, self.d.publish_object_manual, ("obstacle", x, y, z,
+        add_obstacle_timer = th.Timer(dyn_time, self.d.publish_object_xyz, ("obstacle", x, y, z,
                                                                                r, 'sphere'))
         log_timer.start()
         add_obstacle_timer.start()
@@ -147,7 +147,7 @@ class TestInterface():
         (start_state, goal_state) = self.load_start_and_goal_states()
         self.setup("RRTstarkConfigRealTimeTesting", start=start_state)
         (x, y, z, r) = (0.4, -0.4, 0.4, 0.05)
-        self.d.publish_object_manual("obstacle", x, y, z, r, type='sphere')
+        self.d.publish_object_xyz("obstacle", x, y, z, r, primitive='sphere')
         rospy.loginfo("Sending joint goal")
         self.d.go_to_joint_goal(goal_state)
 
@@ -166,7 +166,7 @@ class TestInterface():
         (x, y, z, size) = (0.8, 0.0, 0.4, (0.5, 0.02, 0.4))
         log_timer = th.Timer(2.0, rospy.loginfo, args=("Adding obstacle, sending final joint "
                                                        "goal"))
-        add_obstacle_timer = th.Timer(dyn_time, self.d.publish_object_manual,
+        add_obstacle_timer = th.Timer(dyn_time, self.d.publish_object_xyz,
                                       ("obstacle", x, y, z, size))
         change_goal_timer = th.Timer(dyn_time, self.rtrrt_goal_pub.publish,
                                      args=(final_joint_msg,))
@@ -181,7 +181,7 @@ class TestInterface():
         self.setup("RRTstarkConfigRealTimeTesting", start=start_state)
         (x, y, z, size) = (0.4, 0.0, 0.4, (0.5, 0.02, 0.5))
         rospy.loginfo("Adding obstacle")
-        self.d.publish_object_manual("obstacle", x, y, z, size)
+        self.d.publish_object_xyz("obstacle", x, y, z, size)
         rospy.loginfo("Sending joint goal")
         self.d.go_to_joint_goal(goal_state)
 
@@ -201,7 +201,7 @@ class TestInterface():
         self.rrt_goal_pub.publish(initial_joint_msg)
         rospy.sleep(dyn_time)
         rospy.loginfo("Adding obstacle")
-        self.d.publish_object_manual("obstacle", x, y, z, r, 'sphere')
+        self.d.publish_object_xyz("obstacle", x, y, z, r, 'sphere')
         sleep_time = 3
         rospy.loginfo(f"Sleeping for {sleep_time} seconds to allow trajectory to begin")
         rospy.sleep(sleep_time)
@@ -218,7 +218,7 @@ class TestInterface():
         for i in range(num_obstacles):
             (x, y, z, r) = OBS_LIST[i]
             rospy.loginfo(f"Adding obstacle {i}")
-            self.d.publish_object_manual(f"obstacle{i}", x, y, z, r, 'sphere')
+            self.d.publish_object_xyz(f"obstacle{i}", x, y, z, r, 'sphere')
         rospy.loginfo("Publishing initial joint goal")
         initial_joint_msg = Float64MultiArray()
         initial_joint_msg.data = self.initial_joint_goal

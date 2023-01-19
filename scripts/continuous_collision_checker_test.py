@@ -37,7 +37,7 @@ class CollisionTest:
         self.current_path_pub.publish(self.joint_trajectory)
 
     def publish_test_obstacle(self):
-        self.demo_interface.publish_object_manual('obstacle', 0.5, 0.0, 0.6, 0.05, type='sphere')
+        self.demo_interface.publish_object_xyz('obstacle', 0.5, 0.0, 0.6, 0.05, primitive='sphere')
 
     def remove_test_obstacle(self):
         self.demo_interface.remove_object('obstacle')
