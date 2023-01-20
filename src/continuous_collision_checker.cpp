@@ -25,10 +25,11 @@ protected:
   planning_scene_monitor::PlanningSceneMonitorPtr psm_ptr;
   ros::NodeHandle nh_;
   moveit::core::RobotState& current_state;
-  ros::Subscriber current_path_sub, reached_state_sub, updated_planning_scene_sub;
-  ros::Publisher imminent_collision_pub;
+  ros::Subscriber current_path_sub, executing_to_state_sub, updated_planning_scene_sub;
+  ros::Publisher edge_clear_pub;
   // may want to make this a deque so it's easy to pop off the front position when we advance states
   std::deque<std::vector<double>> current_path_;
+  bool edge_clear_;
 
 public:
   ContinuousCollisionChecker(ros::NodeHandle nh) :
@@ -44,6 +45,7 @@ public:
       else
         ROS_WARN("Unseccessful request to get planning scene state");
       nh_ = nh;
+      edge_clear_ = false;
       initSubsPubs();
     }
 
@@ -52,12 +54,13 @@ public:
     // Planner publishes when a new solution path is found
     current_path_sub = nh_.subscribe("/current_path", 1, &ContinuousCollisionChecker::currentPathCb, this);
     // Controller publishes progress
-    reached_state_sub = nh_.subscribe("/reached_state", 1, &ContinuousCollisionChecker::reachedStateCb, this);
+    executing_to_state_sub = nh_.subscribe("/executing_to_state", 1, &ContinuousCollisionChecker::executingToStateCb,
+                                           this);
     // Move group publishes updates when the environment changes
     updated_planning_scene_sub = nh_.subscribe("/move_group/monitored_planning_scene", 1,
                                                &ContinuousCollisionChecker::planningSceneCb, this);
-    // Latched topic that will notify when a collision is imminent
-    imminent_collision_pub = nh_.advertise<std_msgs::Bool>("/collision_imminent", 1, true);
+    // Latched topic that will notify when the next edge in the current path is clear
+    edge_clear_pub = nh_.advertise<std_msgs::Bool>("/edge_clear", 1);//, true);// latched
   }
 
   void currentPathCb(const trajectory_msgs::JointTrajectory& current_path)
@@ -65,30 +68,31 @@ public:
     ROS_INFO("Collision detector recieved new path");
     current_path_.clear();
 
-    // Skip the first point that we're currently at (i = 0) since the controller is already controlling in between the
-    // first and second points and we are neglecting collisions in this space since there's nothing we can do about them
-    // until we've reached our next node
-    for (int i=1; i < current_path.points.size(); i++)
+    for (int i=0; i < current_path.points.size(); i++)
       current_path_.emplace_back(current_path.points[i].positions);
+
+    edge_clear_ = false;
 
     checkCollision();
   }
 
-  void reachedStateCb(const trajectory_msgs::JointTrajectoryPoint& reached_state)
+  void executingToStateCb(const trajectory_msgs::JointTrajectoryPoint& next_state)
   {
-    ROS_INFO("Collision detector: reached next state");
-    // Check to make sure the state we've reached is as expected
-    if (reached_state.positions == current_path_[0])
-      current_path_.pop_front();
-    else
-      ROS_ERROR("Collision detector: reached unexpected state");
-
+    ROS_INFO("Collision detector notified the controller is executing to next state");
+    // Check to make sure the next state is as expected
+    if (next_state.positions != current_path_[1])
+    {
+      ROS_ERROR("Collision detector: provided unexpected next state");
+      return;
+    }
+    ROS_INFO("Collision detector: provided expected next state");
+    current_path_.pop_front();
+    edge_clear_ = false;
     checkCollision();
   }
 
   void planningSceneCb(const moveit_msgs::PlanningScene& scene)
   {
-    ROS_INFO("Collision detector Planning scene update detected");
     checkCollision();
   }
 
@@ -96,7 +100,7 @@ public:
   {
     if (current_path_.size() <= 1)
     {
-      ROS_WARN("Unable to check collision: path to goal not yet set, or on way to goal");
+      ROS_WARN("Not checking collision: path to goal not yet set, or on way to goal");
       return;
     }
     collision_detection::CollisionRequest req;
@@ -116,13 +120,20 @@ public:
     state2.update();
     planning_scene->getCollisionEnv()->checkRobotCollision(req, res, state2, state);
     ROS_INFO_STREAM("Collision Detector: " << (res.collision ? "In collision." : "Not in collision."));
-    ROS_INFO_STREAM("Collision Detector Next state: [" << current_path_[0][0] << ", " << current_path_[0][1] << ", " <<
+    ROS_INFO_STREAM("Collision Detector state1: [" << current_path_[0][0] << ", " << current_path_[0][1] << ", " <<
                     current_path_[0][2] << ", " << current_path_[0][3] << ", " << current_path_[0][4] <<
                     current_path_[0][5] << ", " << current_path_[0][6] << "]");
+    ROS_INFO_STREAM("Collision Detector state2: [" << current_path_[1][0] << ", " << current_path_[1][1] << ", " <<
+                    current_path_[1][2] << ", " << current_path_[1][3] << ", " << current_path_[1][4] <<
+                    current_path_[1][5] << ", " << current_path_[1][6] << "]");
     // Publish collision result
-    std_msgs::Bool collision_msg;
-    collision_msg.data = res.collision;
-    imminent_collision_pub.publish(collision_msg);
+    std_msgs::Bool edge_clear_msg;
+    edge_clear_msg.data = !res.collision;
+    if (edge_clear_msg.data != edge_clear_)
+    {
+      edge_clear_ = edge_clear_msg.data;
+      edge_clear_pub.publish(edge_clear_msg);
+    }
   }
 
 };
