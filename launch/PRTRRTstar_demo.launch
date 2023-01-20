@@ -73,4 +73,10 @@
     <arg name="moveit_warehouse_database_path" value="$(arg db_path)"/>
   </include>
 
+  <!-- <node name="PRTRRT_star_controller" pkg="end_effector_control" type="PRTRRT_star_controller.py" output="screen" /> -->
+  <node name="PRTRRT_star_controller" pkg="end_effector_control" type="PRTRRT_star_controller.py" />
+
+  <!-- <node name="continuous_collision_detector" pkg="end_effector_control" type="continuous_collision_checker" output="screen" /> -->
+  <node name="continuous_collision_detector" pkg="end_effector_control" type="continuous_collision_checker" />
+
 </launch>

@@ -11,9 +11,10 @@
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
 #include <moveit/collision_detection_bullet/collision_env_bullet.h>
 #include <moveit/collision_detection_bullet/collision_detector_allocator_bullet.h>
+#include <std_msgs/Float64MultiArray.h>
 #include <trajectory_msgs/JointTrajectory.h>
-#include <trajectory_msgs/JointTrajectoryPoint.h>
-#include <std_msgs/Bool.h>
+#include <robo_demo_msgs/JointTrajectoryPointStamped.h>
+#include <robo_demo_msgs/BoolStamped.h>
 #include <sensor_msgs/JointState.h>
 #include <moveit_msgs/RobotState.h>
 #include <ros/serialization.h>
@@ -21,50 +22,56 @@
 class ContinuousCollisionChecker
 {
 protected:
-  robot_model_loader::RobotModelLoaderPtr rm_loader_ptr;
-  planning_scene_monitor::PlanningSceneMonitorPtr psm_ptr;
+  robot_model_loader::RobotModelLoaderPtr rm_loader_ptr_;
+  planning_scene_monitor::PlanningSceneMonitorPtr psm_ptr_;
   ros::NodeHandle nh_;
-  moveit::core::RobotState& current_state;
-  ros::Subscriber current_path_sub, executing_to_state_sub, updated_planning_scene_sub;
-  ros::Publisher edge_clear_pub;
+  moveit::core::RobotState& current_state_;
+  ros::Subscriber current_path_sub_, executing_to_state_sub_, updated_planning_scene_sub_, new_goal_sub_;
+  ros::Publisher edge_clear_pub_;
   // may want to make this a deque so it's easy to pop off the front position when we advance states
   std::deque<std::vector<double>> current_path_;
   bool edge_clear_;
+  int current_path_cb_count_ {0};
+  int executing_to_state_cb_count_ {0};
+  int edge_clear_pub_count_ {0};
 
 public:
   ContinuousCollisionChecker(ros::NodeHandle nh) :
-    rm_loader_ptr(std::make_shared<robot_model_loader::RobotModelLoader>("robot_description")),
-    psm_ptr(std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(rm_loader_ptr)),
-    current_state(psm_ptr->getPlanningScene()->getCurrentStateNonConst())
-    {
-      psm_ptr->startSceneMonitor();
-      psm_ptr->startWorldGeometryMonitor();
-      psm_ptr->startStateMonitor();
-      if (psm_ptr->requestPlanningSceneState("/get_planning_scene"))
-        ROS_INFO("Successfully retrieved planning scene state");
-      else
-        ROS_WARN("Unseccessful request to get planning scene state");
-      nh_ = nh;
-      edge_clear_ = false;
-      initSubsPubs();
-    }
+    rm_loader_ptr_(std::make_shared<robot_model_loader::RobotModelLoader>("robot_description")),
+    psm_ptr_(std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(rm_loader_ptr_)),
+    current_state_(psm_ptr_->getPlanningScene()->getCurrentStateNonConst())
+  {
+    psm_ptr_->startSceneMonitor();
+    psm_ptr_->startWorldGeometryMonitor();
+    psm_ptr_->startStateMonitor();
+    if (psm_ptr_->requestPlanningSceneState("/get_planning_scene"))
+      ROS_INFO("Successfully retrieved planning scene state");
+    else
+      ROS_WARN("Unseccessful request to get planning scene state");
+    nh_ = nh;
+    edge_clear_ = false;
+    initSubsPubs();
+  }
 
   void initSubsPubs()
   {
     // Planner publishes when a new solution path is found
-    current_path_sub = nh_.subscribe("/current_path", 1, &ContinuousCollisionChecker::currentPathCb, this);
+    current_path_sub_ = nh_.subscribe("/current_path", 1, &ContinuousCollisionChecker::currentPathCb, this);
     // Controller publishes progress
-    executing_to_state_sub = nh_.subscribe("/executing_to_state", 1, &ContinuousCollisionChecker::executingToStateCb,
-                                           this);
+    executing_to_state_sub_ = nh_.subscribe("/executing_to_state", 1, &ContinuousCollisionChecker::executingToStateCb,
+                                            this);
     // Move group publishes updates when the environment changes
-    updated_planning_scene_sub = nh_.subscribe("/move_group/monitored_planning_scene", 1,
-                                               &ContinuousCollisionChecker::planningSceneCb, this);
-    // Latched topic that will notify when the next edge in the current path is clear
-    edge_clear_pub = nh_.advertise<std_msgs::Bool>("/edge_clear", 1);//, true);// latched
+    updated_planning_scene_sub_ = nh_.subscribe("/move_group/monitored_planning_scene", 1,
+                                                &ContinuousCollisionChecker::planningSceneCb, this);
+    new_goal_sub_ = nh_.subscribe("/new_planner_goal", 1, &ContinuousCollisionChecker::newGoalCb, this);
+    // Notify when the next edge in the current path is clear
+    edge_clear_pub_ = nh_.advertise<robo_demo_msgs::BoolStamped>("/edge_clear", 3);
   }
 
   void currentPathCb(const trajectory_msgs::JointTrajectory& current_path)
   {
+    current_path_cb_count_++;
+    ROS_WARN_STREAM("currentPathCb " << current_path_cb_count_);
     ROS_INFO("Collision detector recieved new path");
     current_path_.clear();
 
@@ -76,36 +83,56 @@ public:
     checkCollision();
   }
 
-  void executingToStateCb(const trajectory_msgs::JointTrajectoryPoint& next_state)
+  void executingToStateCb(const robo_demo_msgs::JointTrajectoryPointStamped::ConstPtr& next_state)
   {
+    executing_to_state_cb_count_++;
+    ROS_WARN_STREAM("executingToStateCb " << executing_to_state_cb_count_);
     ROS_INFO("Collision detector notified the controller is executing to next state");
     // Check to make sure the next state is as expected
-    if (next_state.positions != current_path_[1])
+    if (next_state->trajectory_point.positions != current_path_[1])
     {
-      ROS_ERROR("Collision detector: provided unexpected next state");
+      ROS_ERROR("Collision detector: recieved unexpected next state from controller");
+      ROS_ERROR_STREAM("expected [" << current_path_[1][0] << ", " << current_path_[1][1] << ", " << current_path_[1][2]
+                       << ", " << current_path_[1][3] << ", " << current_path_[1][4] << current_path_[1][5] << ", " <<
+                       current_path_[1][6] << "]");
+      ROS_ERROR_STREAM("recieved [" << next_state->trajectory_point.positions[0] << ", " <<
+                       next_state->trajectory_point.positions[1] << ", " << next_state->trajectory_point.positions[2] <<
+                       ", " << next_state->trajectory_point.positions[3] << ", " <<
+                       next_state->trajectory_point.positions[4] << next_state->trajectory_point.positions[5] << ", " <<
+                       next_state->trajectory_point.positions[6] << "]");
       return;
     }
-    ROS_INFO("Collision detector: provided expected next state");
     current_path_.pop_front();
     edge_clear_ = false;
     checkCollision();
   }
 
-  void planningSceneCb(const moveit_msgs::PlanningScene& scene)
+  void planningSceneCb(const moveit_msgs::PlanningScene::ConstPtr& scene)
   {
     checkCollision();
   }
 
+  void newGoalCb(const std_msgs::Float64MultiArray::ConstPtr& new_goal_msg)
+  {
+    if (current_path_.empty())
+      current_path_.clear();
+  }
+
   void checkCollision()
   {
-    if (current_path_.size() <= 1)
+    if (current_path_.empty())
     {
-      ROS_WARN("Not checking collision: path to goal not yet set, or on way to goal");
+      ROS_WARN_THROTTLE(2.0, "Not checking collision: path to goal not yet set");
+      return;
+    }
+    if (current_path_.size() == 1)
+    {
+      ROS_WARN_THROTTLE(2.0, "Not checking collision: on way to goal");
       return;
     }
     collision_detection::CollisionRequest req;
     collision_detection::CollisionResult res;
-    auto planning_scene = psm_ptr->getPlanningScene();
+    auto planning_scene = psm_ptr_->getPlanningScene();
     planning_scene->setActiveCollisionDetector(collision_detection::CollisionDetectorAllocatorBullet::create(),
                                                true /* exclusive */);
     // Set robot states
@@ -119,20 +146,23 @@ public:
     state.update();
     state2.update();
     planning_scene->getCollisionEnv()->checkRobotCollision(req, res, state2, state);
-    ROS_INFO_STREAM("Collision Detector: " << (res.collision ? "In collision." : "Not in collision."));
-    ROS_INFO_STREAM("Collision Detector state1: [" << current_path_[0][0] << ", " << current_path_[0][1] << ", " <<
-                    current_path_[0][2] << ", " << current_path_[0][3] << ", " << current_path_[0][4] <<
-                    current_path_[0][5] << ", " << current_path_[0][6] << "]");
-    ROS_INFO_STREAM("Collision Detector state2: [" << current_path_[1][0] << ", " << current_path_[1][1] << ", " <<
-                    current_path_[1][2] << ", " << current_path_[1][3] << ", " << current_path_[1][4] <<
-                    current_path_[1][5] << ", " << current_path_[1][6] << "]");
-    // Publish collision result
-    std_msgs::Bool edge_clear_msg;
-    edge_clear_msg.data = !res.collision;
-    if (edge_clear_msg.data != edge_clear_)
+    if (res.collision == edge_clear_) // if detection changed
     {
-      edge_clear_ = edge_clear_msg.data;
-      edge_clear_pub.publish(edge_clear_msg);
+      edge_clear_ = !res.collision;
+      ROS_INFO_STREAM("Collision detector: edge_clear_: " << edge_clear_);
+      ROS_INFO_STREAM("Collision Detector state1: [" << current_path_[0][0] << ", " << current_path_[0][1] << ", " <<
+                      current_path_[0][2] << ", " << current_path_[0][3] << ", " << current_path_[0][4] <<
+                      current_path_[0][5] << ", " << current_path_[0][6] << "]");
+      ROS_INFO_STREAM("Collision Detector state2: [" << current_path_[1][0] << ", " << current_path_[1][1] << ", " <<
+                      current_path_[1][2] << ", " << current_path_[1][3] << ", " << current_path_[1][4] <<
+                      current_path_[1][5] << ", " << current_path_[1][6] << "]");
+      // Publish collision result
+      robo_demo_msgs::BoolStamped edge_clear_msg;
+      edge_clear_msg.data = !res.collision;
+      edge_clear_pub_count_++;
+      ROS_WARN_STREAM("edge_clear_publication " << edge_clear_pub_count_);
+      edge_clear_msg.header.stamp = ros::Time::now();
+      edge_clear_pub_.publish(edge_clear_msg);
     }
   }
 

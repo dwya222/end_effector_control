@@ -4,6 +4,7 @@ from demo_interface import DemoInterface
 
 def main():
   mover = DemoInterface()
+  mover.set_planner_id("RTRRTstarkConfigDefault")
   mover.plan_to_start()
 
 if __name__ == '__main__':
