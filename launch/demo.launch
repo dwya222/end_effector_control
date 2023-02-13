@@ -4,7 +4,8 @@
   <arg name="simulation" default="true" />
   <param name="simulation" value="$(arg simulation)"/>
   <!-- lanch prefix for debugging -->
-  <arg name="launch_prefix" default="gdb -ex run --args"/>
+  <!-- default="gdb -ex run - -args" -->
+  <arg name="launch_prefix" default="valgrind"/>
   <!-- By default, we do not start a database (it can be large) -->
   <arg name="db" default="false" />
   <!-- Allow user to specify database location -->

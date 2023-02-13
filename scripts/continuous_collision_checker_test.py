@@ -2,15 +2,17 @@
 
 import rospy
 
-from std_msgs.msg import Bool
-from trajectory_msgs.msg import JointTrajectory
-from trajectory_msgs.msg import JointTrajectoryPoint
-
+from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+from robo_demo_msgs.msg import JointTrajectoryPointStamped, JointTrajectoryPointClearStamped
 from demo_interface import DemoInterface
 
 JOINT_STATE1 = [0.00, -0.785, 0.00, -2.356, 0.00, 1.571, 0.785]
-JOINT_STATE2 = [0.00, 0.00, 0.00, -1.75, 0.00, 1.571, 0.785]
-JOINT_STATE3 = [0.00, 0.785, 0.00, -1.00, 0.00, 1.571, 0.785]
+# JOINT_STATE2 = [0.00, 0.00, 0.00, -1.75, 0.00, 1.571, 0.785]
+JOINT_STATE2 = [0.40920392655323845, -0.45299422225870184, -1.3031637768785265,
+                -2.1619692963673867, -0.2533941856117664, 3.0280971371667045, -0.3360878201743867]
+# JOINT_STATE3 = [0.00, 0.785, 0.00, -1.00, 0.00, 1.571, 0.785]
+JOINT_STATE3 = [0.9022255518660315, -1.0005112966461382, -1.760256825506428, -2.709892552480913,
+                -0.14203649926382245, 3.493591515981207, -0.34730963534631754]
 JOINT_STATES = [JOINT_STATE1, JOINT_STATE2, JOINT_STATE3]
 
 class CollisionTest:
@@ -20,12 +22,14 @@ class CollisionTest:
         self.demo_interface = DemoInterface(node_initialized=True)
 
     def init_subs_pubs(self):
-        self.imminent_collision_sub = rospy.Subscriber("/collision_imminent", Bool, self.imminent_collision_cb)
+        self.edge_clear_sub = rospy.Subscriber("/edge_clear", JointTrajectoryPointClearStamped,
+                                               self.edge_clear_cb)
         self.current_path_pub = rospy.Publisher("/current_path", JointTrajectory, queue_size=1)
-        self.reached_state_pub = rospy.Publisher("/reached_state", JointTrajectoryPoint, queue_size=1)
+        self.executing_to_state_pub = rospy.Publisher("/executing_to_state",
+                                                      JointTrajectoryPointStamped, queue_size=1)
 
-    def imminent_collision_cb(self, bool_msg):
-        rospy.loginfo(f"Collision immiment cb: {bool_msg.data}")
+    def edge_clear_cb(self, point_stamped_msg):
+        rospy.loginfo(f"Collision immiment cb: {point_stamped_msg}")
 
     def publish_sample_path(self):
         self.joint_trajectory = JointTrajectory()
@@ -37,14 +41,16 @@ class CollisionTest:
         self.current_path_pub.publish(self.joint_trajectory)
 
     def publish_test_obstacle(self):
-        self.demo_interface.publish_object_xyz('obstacle', 0.5, 0.0, 0.6, 0.05, primitive='sphere')
+        # self.demo_interface.publish_object_xyz('obstacle', 0.5, 0.0, 0.6, 0.05, primitive='sphere')
+        self.demo_interface.publish_object_xyz('obstacle', 0.4, -0.3, 0.4, 0.05, primitive='sphere')
 
     def remove_test_obstacle(self):
         self.demo_interface.remove_object('obstacle')
 
-    def publish_reached_state(self):
-        reached_state_msg = self.joint_trajectory.points[1]
-        self.reached_state_pub.publish(reached_state_msg)
+    def publish_executing_to_state(self):
+        executing_to_state_msg = JointTrajectoryPointStamped()
+        executing_to_state_msg.trajectory_point = self.joint_trajectory.points[1]
+        self.executing_to_state_pub.publish(executing_to_state_msg)
 
 
 if __name__ == "__main__":
@@ -56,8 +62,7 @@ if __name__ == "__main__":
     ct.publish_sample_path()
     input("press enter to pubish test obstacle\n")
     ct.publish_test_obstacle()
+    input("press enter to publish executing to state\n")
+    ct.publish_executing_to_state()
     input("press enter to remove test obstacle\n")
     ct.remove_test_obstacle()
-    input("press enter to publish reached next state\n")
-    ct.publish_reached_state()
-
