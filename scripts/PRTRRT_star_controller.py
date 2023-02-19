@@ -5,6 +5,7 @@ Parallelized Real-Time RRT* Controller
 from abc import abstractmethod
 from enum import Enum
 from threading import RLock
+import numpy as np
 
 import rospy
 import actionlib
@@ -17,8 +18,6 @@ from control_msgs.msg import (FollowJointTrajectoryAction, FollowJointTrajectory
 from trajectory_msgs.msg import JointTrajectory
 from sensor_msgs.msg import JointState
 
-from demo_interface import DemoInterface
-
 HW_CONTROLLER_TOPIC = "/position_joint_trajectory_controller/follow_joint_trajectory"
 HW_CONTROLLER_RESULT_TOPIC = HW_CONTROLLER_TOPIC + "/result"
 SIM_CONTROLLER_TOPIC = "/execute_trajectory"
@@ -29,6 +28,12 @@ DESIRED_JOINT_STATE_TOPIC = "/joint_states_desired"
 VELOCITY_MULTIPLIER = 0.2
 
 
+class ControllerState(Enum):
+    WAIT_FOR_PATH = 0
+    WAIT_FOR_EDGE_CLEAR = 1
+    EXECUTING = 2
+
+
 class PRTRRTstarController():
 
     def __init__(self):
@@ -37,20 +42,27 @@ class PRTRRTstarController():
         self.joint_names = PANDA_JOINT_NAMES
         self.control_time = rospy.get_param('/control_time', 1.0)
         self.controller_active = False
-        self.mutex = RLock()
-        self.edge_clear_point = None
+        self.current_path_mutex = RLock()
+        self.edge_clear_mutex = RLock()
+        self.new_goal_mutex = RLock()
+        self.controller_result_mutex = RLock()
         self.current_path = []
-        self.current_path_cb_count = 0
-        self.edge_clear_cb_count = 0
-        self.controller_result_cb_count = 0
-        self.executing_to_state_pub_count = 0
+        self.current_goal = []
+        self.edge_clear = False
+        self.edge_clear_point = None
+        self.received_new_goal = False
+        self.controller_state = ControllerState.WAIT_FOR_PATH
+        self._new_current_path = None
+        self._new_edge_clear_msg = None
+        self._new_goal_msg = None
+        self._new_controller_result_msg = None
 
     def setup_controller(self):
         self.trajectory_client = actionlib.SimpleActionClient(self.controller_topic,
                                                               self.controller_msg_type)
         while not self.trajectory_client.wait_for_server(rospy.Duration(2.0)):
-            rospy.loginfo_throttle(1.0, f"Waiting for the {SIM_CONTROLLER_TOPIC} action server")
-        rospy.loginfo(f"Controller connected. Topic: {SIM_CONTROLLER_TOPIC}")
+            rospy.loginfo_throttle(1.0, f"Waiting for the {self.controller_topic} action server")
+        rospy.loginfo(f"Controller connected. Topic: {self.controller_topic}")
 
     def init_subs_pubs(self):
         self.current_path_sub = rospy.Subscriber("/current_path", JointTrajectory,
@@ -67,74 +79,136 @@ class PRTRRTstarController():
         rospy.loginfo(f"Publisher and subscribers initialized")
 
     def current_path_cb(self, current_path_msg):
-        with self.mutex:
-            self.current_path_cb_count += 1
-            rospy.logwarn(f"current_path callback {self.current_path_cb_count}")
-            # rospy.loginfo("PRTRRT controller recieved new current path")
-            self.current_path = current_path_msg.points
-            # The edge clear msg could have already come in for the next
-            # step in this path, so can keep self.edge_clear the same
-            # if that happened, otherwise set it to False (still need
-            # the collision checker to clear it)
-            if self.edge_clear_point == current_path_msg.points[1]:
-                rospy.logwarn(f"OUT OF ORDER CB DETECTED edge_clear_point\n{self.edge_clear_point}"
-                              f"\ncurrent_path_point:\n{current_path_msg.points[1]}")
-            else:
-                self.edge_clear = False
-            rospy.loginfo(f"current_path_cb edge_clear: {self.edge_clear}, {current_path_msg.header.stamp}")
+        rospy.loginfo("PRTRRTstar Controller received path msg")
+        with self.current_path_mutex:
+            self._new_current_path = current_path_msg
 
     def edge_clear_cb(self, point_clear_msg):
-        with self.mutex:
-            self.edge_clear_cb_count += 1
-            rospy.logwarn(f"edge_clear callback {self.edge_clear_cb_count}")
-            if not self.current_path or len(self.current_path) == 1:
-                rospy.logerr("Edge clear sent callback when we have no current path or are headed"
-                             " to/already at goal")
-                return
-            if not point_clear_msg.trajectory_point.positions == self.current_path[1].positions:
-                rospy.logerr("Edge cleared state does NOT match next control state. \nEdge cleared"
-                             f" state: \n{point_clear_msg.trajectory_point.positions}\nnext "
-                             f"control state: {self.current_path[1].positions}")
-            else:
-                rospy.loginfo("Edge cleared state matches next control state")
-            # rospy.loginfo(f"PRTRRT controller: Edge clear cb. data: {point_clear_msg.data}")
-            self.edge_clear = point_clear_msg.clear
-            self.edge_clear_point = point_clear_msg.trajectory_point
-            rospy.loginfo(f"edge_clear_cb clear: {self.edge_clear}, point:"
-                          f"\n{self.edge_clear_point}")
-            if self.edge_clear and not self.controller_active:
-                self.initiate_next_move()
-            # if edge is not clear then clear the current path and wait for the planner to find a
-            # new one
-            elif not self.edge_clear:
-                self.current_path.clear()
+        rospy.loginfo("PRTRRTstar Controller received edge clear msg")
+        with self.edge_clear_mutex:
+            self._new_edge_clear_msg = point_clear_msg
 
     def new_goal_cb(self, new_goal_msg):
-        with self.mutex:
-            if self.current_path:
-                self.current_path.clear()
+        rospy.loginfo("PRTRRTstar Controller received new goal msg")
+        with self.new_goal_mutex:
+            self._new_goal_msg = new_goal_msg
 
     def controller_result_cb(self, result_msg):
-        with self.mutex:
-            self.controller_result_cb_count += 1
-            rospy.logwarn(f"controller_result callback {self.controller_result_cb_count}")
-            if result_msg.status.status == 3:
-                # rospy.loginfo(f"PRTRRT controller successfully reached next state, edge_clear? {self.edge_clear}")
-                self.controller_active = False
-                if len(self.current_path) == 1:
-                    # rospy.loginfo("Goal Achieved: reached end of current_path")
-                    return
-                if self.edge_clear:
+        rospy.loginfo("PRTRRTstar Controller received controller result")
+        with self.controller_result_mutex:
+            self._new_controller_result_msg = result_msg
+
+    def run(self):
+        while not rospy.is_shutdown():
+            self.handle_callbacks()
+            if self.controller_state == ControllerState.WAIT_FOR_PATH:
+                if self.current_path:
+                    rospy.logwarn("Controller received path, waiting for edge clear")
+                    self.controller_state = ControllerState.WAIT_FOR_EDGE_CLEAR
+            elif self.controller_state == ControllerState.WAIT_FOR_EDGE_CLEAR:
+                if self.received_new_goal:
+                    rospy.logwarn("Controller received new goal, waiting for new path")
+                    self.controller_state = ControllerState.WAIT_FOR_PATH
+                    self.received_new_goal = False
+                    continue
+                # There are 3 potential outcomes here:
+                # 1: waiting for the determination on the next edge
+                if not self.next_edge_checked():
+                    continue
+                # 2: next edge is clear
+                elif self.next_edge_clear():
                     self.initiate_next_move()
-            else:
-                rospy.logerr(f"Unexpected result message status. message: \n{result_msg}")
+                    rospy.logwarn("Controller received edge clear, executing control")
+                    self.controller_state = ControllerState.EXECUTING
+                # 3: next edge is not clear
+                else:
+                    self.current_path.clear()
+                    rospy.logwarn("Controller received edge NOT clear, waiting for new path")
+                    self.controller_state = ControllerState.WAIT_FOR_PATH
+            elif self.controller_state == ControllerState.EXECUTING:
+                if not self.controller_active and len(self.current_path) == 1:
+                    rospy.logwarn("Robot controlled to goal state, awaiting next path")
+                    self.current_path.clear()
+                    self.controller_state = ControllerState.WAIT_FOR_PATH
+                elif not self.controller_active:
+                    rospy.logwarn("Robot controlled to next state, awaiting next edge clear")
+                    self.controller_state = ControllerState.WAIT_FOR_EDGE_CLEAR
+
+    def handle_callbacks(self):
+        with self.new_goal_mutex:
+            if self._new_goal_msg:
+                rospy.loginfo("handling new goal msg")
+                self.handle_new_goal()
+                self._new_goal_msg = None
+        with self.current_path_mutex:
+            if self._new_current_path:
+                rospy.loginfo("handling new current path")
+                self.handle_new_current_path()
+                self._new_current_path = None
+        with self.edge_clear_mutex:
+            if self._new_edge_clear_msg:
+                rospy.loginfo("handling new edge clear")
+                self.handle_new_edge_clear()
+                self._new_edge_clear_msg = None
+        with self.controller_result_mutex:
+            if self._new_controller_result_msg:
+                rospy.loginfo("handling new controller result")
+                self.handle_new_controller_result()
+                self._new_controller_result_msg = None
+
+    def handle_new_current_path(self):
+        self.current_path = self._new_current_path.points
+
+    def handle_new_edge_clear(self):
+        self.edge_clear = self._new_edge_clear_msg.clear
+        self.edge_clear_point = self._new_edge_clear_msg.trajectory_point
+
+    def handle_new_goal(self):
+        self.current_goal = self._new_goal_msg.data
+        self.received_new_goal = True
+        self.current_path.clear()
+
+    def handle_new_controller_result(self):
+        if self._new_controller_result_msg.status.status == 3:
+            self.controller_active = False
+        else:
+            rospy.logerr(f"Unexpected result message status. message: \n{result_msg}")
+            raise Exception('Throwing exception due to unexpected controller result')
+
+    def current_path_solution(self):
+        """ Check if the last position in the current path is a solution
+
+        returns:
+            True if the current path exists and is a solution, otherwise
+                returns False
+        """
+        if len(self.current_path) == 0:
+            return False
+        if len(self.current_goal) == 0:
+            # If we haven't received a changed goal, then we can assume
+            # that the existence of a current_path means the
+            # current_path is a solution
+            return True
+        return np.allclose(self.current_path[-1].positions, self.current_goal, atol=0.01)
+
+    def next_edge_clear(self):
+        """ Check if next edge in current path is clear
+
+        returns:
+            True if the next edge has been cleared, False otherwise
+        """
+        with self.edge_clear_mutex:
+            if len(self.current_path) <= 1:
+                rospy.logwarn("Current path too short in next_edge_clear, returning False\n "
+                              f"current_path: {self.current_path}")
+                return False
+            return self.edge_clear and self.next_edge_checked()
+
+    def next_edge_checked(self):
+        with self.edge_clear_mutex:
+            return self.current_path[1] == self.edge_clear_point
 
     def initiate_next_move(self):
-        if not self.current_path:
-            rospy.logwarn("Attempted to initiate next move without current path, returning")
-            return
-        self.executing_to_state_pub_count += 1
-        rospy.logwarn(f"executing to state pub {self.executing_to_state_pub_count}")
         joint_position_msg = JointTrajectoryPointStamped()
         self.current_path[1].time_from_start = rospy.Duration(self.control_time)
         joint_position_msg.trajectory_point = self.current_path[1]
@@ -195,7 +269,7 @@ class PRTRRTstarSimController(PRTRRTstarController):
 if __name__ == "__main__":
     rospy.init_node("PRTRRT_star_controller")
     if rospy.get_param('/simulation', False):
-        monitor = PRTRRTstarSimController()
+        controller = PRTRRTstarSimController()
     else:
-        monitor = PRTRRTstarHwController()
-    rospy.spin()
+        controller = PRTRRTstarHwController()
+    controller.run()
