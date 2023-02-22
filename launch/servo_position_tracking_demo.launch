@@ -1,0 +1,18 @@
+<?xml version="1.0" ?>
+<launch>
+  <arg name="run_rviz" default="true" />
+
+  <include file="$(find panda_moveit_config)/launch/panda_control_moveit_rviz.launch">
+    <arg name="robot_ip" default="172.16.0.2" />
+    <arg name="load_gripper" default="true" />
+    <arg name="setup" default="staged" />
+    <arg name="launch_rviz" value="$(arg run_rviz)" />
+  </include>
+
+  <node pkg="end_effector_control" type="go_to_start" name="initialize_demo" />
+
+  <include file="$(find moveit_servo)/launch/servo_server.launch" />
+
+  <node pkg="end_effector_control" type="servo_control_position.py" name="twist_publisher" output="screen" />
+  <node pkg="camera" type="target_publisher_usb" name="camera_node" output="screen" />
+</launch>
