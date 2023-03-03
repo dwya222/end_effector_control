@@ -24,8 +24,6 @@ SIM_CONTROLLER_TOPIC = "/execute_trajectory"
 SIM_CONTROLLER_RESULT_TOPIC = SIM_CONTROLLER_TOPIC + "/result"
 PANDA_JOINT_NAMES = ['panda_joint1', 'panda_joint2', 'panda_joint3', 'panda_joint4',
                      'panda_joint5', 'panda_joint6', 'panda_joint7']
-DESIRED_JOINT_STATE_TOPIC = "/joint_states_desired"
-VELOCITY_MULTIPLIER = 0.2
 
 
 class ControllerState(Enum):
@@ -37,10 +35,8 @@ class ControllerState(Enum):
 class PRTRRTstarController():
 
     def __init__(self):
-        self.setup_controller()
-        self.init_subs_pubs()
         self.joint_names = PANDA_JOINT_NAMES
-        self.control_time = rospy.get_param('/control_time', 1.0)
+        self.control_dur = rospy.get_param('/control_dur', 1.0)
         self.controller_active = False
         self.current_path_mutex = RLock()
         self.edge_clear_mutex = RLock()
@@ -56,6 +52,8 @@ class PRTRRTstarController():
         self._new_edge_clear_msg = None
         self._new_goal_msg = None
         self._new_controller_result_msg = None
+        self.setup_controller()
+        self.init_subs_pubs()
 
     def setup_controller(self):
         self.trajectory_client = actionlib.SimpleActionClient(self.controller_topic,
@@ -210,7 +208,7 @@ class PRTRRTstarController():
 
     def initiate_next_move(self):
         joint_position_msg = JointTrajectoryPointStamped()
-        self.current_path[1].time_from_start = rospy.Duration(self.control_time)
+        self.current_path[1].time_from_start = rospy.Duration(self.control_dur)
         joint_position_msg.trajectory_point = self.current_path[1]
         joint_position_msg.header.stamp = rospy.Time.now()
         self.executing_to_state_pub.publish(joint_position_msg)
@@ -235,7 +233,6 @@ class PRTRRTstarHwController(PRTRRTstarController):
         rospy.loginfo("Parallelized RT-RRT* HARDWARE controller initialized")
 
     def initiate_control(self):
-        # rospy.loginfo("Initiating control to next state in current_path")
         goal_point = self.current_path[1]
         trajectory_msg = FollowJointTrajectoryGoal()
         trajectory_msg.trajectory.joint_names = self.joint_names
@@ -255,7 +252,6 @@ class PRTRRTstarSimController(PRTRRTstarController):
         rospy.loginfo("Parallelized RT-RRT* SIMULATION controller initialized")
 
     def initiate_control(self):
-        # rospy.loginfo("Initiating control to next state in current_path")
         current_point = self.current_path[0]
         goal_point = self.current_path[1]
         trajectory_msg = ExecuteTrajectoryGoal()

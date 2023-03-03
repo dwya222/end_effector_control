@@ -12,8 +12,8 @@ def requestPoint():
         # (x, y, z, r) = (0.5, -0.4, 0.6, 0.05)
         # (x, y, z, r) = (0.3, -0.3, 0.3, 0.05)
         # (x, y, z, r) = (0.5, 0.0, 0.6, 0.05)
-        (x, y, z, r) = (0.4, -0.3, 0.4, 0.05)
-        # (x, y, z, r) = (0.4, -0.3, 0.25, 0.05)
+        # (x, y, z, r) = (0.4, -0.3, 0.4, 0.05)
+        (x, y, z, r) = (0.3, -0.4, 0.6, 0.05)
     else:
         rospy.loginfo("Where would you like to publish an obstacle?")
         x = float(input("x: "))

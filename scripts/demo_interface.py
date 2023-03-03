@@ -14,6 +14,7 @@ from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryG
 from trajectory_msgs.msg import JointTrajectoryPoint
 from sensor_msgs.msg import JointState
 from moveit_commander.conversions import pose_to_list
+from std_msgs.msg import Bool
 
 CONTROLLER_TOPIC = "/position_joint_trajectory_controller/follow_joint_trajectory"
 DESIRED_JOINT_STATE_TOPIC = "/joint_states_desired"
@@ -25,6 +26,7 @@ GOAL_SIZE = (0.05, 0.06, 0.055)
 # Offset to account for undetected object depth as the camera detects
 # a point on the front surface of the goal box
 (GOAL_OFFSET_X, GOAL_OFFSET_Y, GOAL_OFFSET_Z) = (-0.03, 0, 0)
+DEFAULT_PLANNING_TIME = 0.5
 
 
 class DemoInterface(object):
@@ -36,6 +38,10 @@ class DemoInterface(object):
         self.setup_moveit()
         self.set_ee_approach_dict()
         self.prev_goal_point = None
+        # self.return_first_solution_pub = rospy.Publisher('/return_first_solution', Bool,
+        #                                                  queue_size=1, latch=True)
+        # self.return_first_solution_pub.publish(Bool(False))
+        rospy.set_param("return_first_solution", False)
         if self.simulation:
             rospy.logwarn("Running demo in simulation")
         else:
@@ -46,7 +52,7 @@ class DemoInterface(object):
         self.group_name = rospy.get_param('/group_name', "panda_arm")
         self.planner_id = rospy.get_param('/planner_id', "RRTstarkConfigDefault")
         self.simulation = rospy.get_param('/simulation', False)
-        self.planning_time = rospy.get_param('/planning_time', 0.5)
+        self.planning_time = rospy.get_param('/planning_time', DEFAULT_PLANNING_TIME)
         self.end_effector_link = rospy.get_param('/end_effector_link', "panda_hand")
         self.goal_object_topic = rospy.get_param('/goal_object_topic', '/goal_object_position')
         self.start_joint_values = START_JOINT_VALUES
@@ -103,13 +109,15 @@ class DemoInterface(object):
     def plan_to_start(self):
         return self.plan_to_joint_goal(self.start_joint_values)
 
-    def plan_to_joint_goal(self, joint_values):
+    def plan_to_joint_goal(self, joint_values, return_first_solution=False):
         """Plan to joint goal.
 
         Returns:
           Result tuple (bool, RobotTrajectory, float, MoveItErrorCode):
             (success, path, planning time, error code)
         """
+        # self.return_first_solution_pub.publish(Bool(return_first_solution))
+        rospy.set_param("return_first_solution", return_first_solution)
         self.move_group.set_joint_value_target(joint_values)
         return self.move_group.plan()
 
@@ -220,10 +228,9 @@ class DemoInterface(object):
         self.prev_goal_point = goal_point
 
     def euclidean_distance(self, point1, point2):
-        x_diff = point2.x - point1.x
-        y_diff = point2.y - point1.y
-        z_diff = point2.z - point2.z
-        return np.sqrt(x_diff**2 + y_diff**2 + z_diff**2)
+        arr1 = np.array((point1.x, point1.y, point1.z))
+        arr2 = np.array((point2.x, point2.y, point2.z))
+        return np.linalg.norm(arr2 - arr1)
 
     def offset_point(self, point, offset):
         point_offset = Point()

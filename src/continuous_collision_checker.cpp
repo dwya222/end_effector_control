@@ -1,7 +1,10 @@
 #include <memory>
+#include <limits>
 #include <string>
 #include <vector>
 #include <deque>
+#include <cmath>
+
 #include <ros/ros.h>
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/robot_model/robot_model.h>
@@ -19,6 +22,7 @@
 #include <moveit_msgs/RobotState.h>
 #include <ros/serialization.h>
 
+
 class ContinuousCollisionChecker
 {
 protected:
@@ -28,7 +32,9 @@ protected:
   moveit::core::RobotState state1_, state2_;
   ros::Subscriber current_path_sub_, executing_to_state_sub_, new_goal_sub_;
   ros::Publisher edge_clear_pub_;
+  std::vector<double> current_goal_ {};
   std::deque<std::vector<double>> current_path_ {};
+  double current_path_cost_ {std::numeric_limits<double>::max()};
   bool edge_clear_ {false}, new_edge_ {false}, prev_edge_clear_ {false};
   int current_path_cb_count_ {0};
   int executing_to_state_cb_count_ {0};
@@ -64,17 +70,91 @@ public:
     edge_clear_pub_ = nh_.advertise<robo_demo_msgs::JointTrajectoryPointClearStamped>("/edge_clear", 3, true);
   }
 
-  void currentPathCb(const trajectory_msgs::JointTrajectory& current_path)
+  void currentPathCb(const trajectory_msgs::JointTrajectory& new_path)
   {
     current_path_cb_count_++;
     ROS_WARN_STREAM("currentPathCb " << current_path_cb_count_);
     ROS_INFO("Collision detector recieved new path");
-    current_path_.clear();
 
-    for (int i=0; i < current_path.points.size(); i++)
-      current_path_.emplace_back(current_path.points[i].positions);
+    // Check if the path is empty (this happens if the planner failed to return a goal)
+    if (new_path.points.empty())
+    {
+      ROS_WARN("Collision checker received empty path, clearing");
+      current_path_.clear();
+      current_path_cost_ = std::numeric_limits<double>::max();
+      return;
+    }
+    // Check if the new path achieves the goal
+    if (almost_equal(new_path.points.back().positions, current_goal_, 0.01))
+      ROS_WARN("New path is a solution to the current goal");
+    else
+    {
+      ROS_ERROR("New path is NOT a solution to the current goal");
+      ROS_INFO_STREAM("current_goal: [" << current_goal_[0] << ", " << current_goal_[1] << ", " << current_goal_[2]
+                      << ", " << current_goal_[3] << ", " << current_goal_[4] << ", " << current_goal_[5] << ", "
+                      << current_goal_[6] << "]");
+      ROS_INFO_STREAM("new_path last: [" << new_path.points.back().positions[0] << ", " <<
+                      new_path.points.back().positions[1] << ", " << new_path.points.back().positions[2] << ", " <<
+                      new_path.points.back().positions[3] << ", " << new_path.points.back().positions[4] << ", " <<
+                      new_path.points.back().positions[5] << ", " << new_path.points.back().positions[6] << "]");
+      return;
+    }
+    // Check if the new path is better than the current one
+    double new_path_cost = calculatePathCost(new_path.points);
+    ROS_INFO_STREAM("new_path_cost: " << new_path_cost << " current_path_cost: " << current_path_cost_);
+    if (new_path_cost < current_path_cost_)
+    {
+      ROS_INFO("New path received with better cost, updating");
+      current_path_.clear();
+      for (int i=0; i < new_path.points.size(); i++)
+        current_path_.emplace_back(new_path.points[i].positions);
+      current_path_cost_ = new_path_cost;
+      new_edge_ = true;
+    }
+    else
+      ROS_INFO("New path received with worse cost, not updating");
+  }
 
-    new_edge_ = true;
+  bool almost_equal(std::vector<double> vec1, std::vector<double> vec2, double tol=0.01)
+  {
+    if (vec1.size() != vec2.size())
+      return false;
+    for (int i=0; i < vec1.size(); i++)
+    {
+      if (abs(vec1[i] - vec2[i]) > tol)
+        return false;
+    }
+    return true;
+  }
+
+  double calculateCurrentPathCost()
+  {
+    double total_cost = 0.0;
+    for (int i=0; i < (current_path_.size() - 1); i++)
+    {
+      double cost = 0.0;
+      for (int j=0; j < current_path_[i].size(); j++)
+      {
+        cost += std::pow((current_path_[i+1][j] - current_path_[i][j]), 2);
+      }
+      total_cost += std::sqrt(cost);
+    }
+    return total_cost;
+  }
+
+  double calculatePathCost(std::vector<trajectory_msgs::JointTrajectoryPoint> points)
+  {
+    double total_cost = 0.0;
+    for (int i=0; i < (points.size() - 1); i++)
+    {
+      double cost = 0.0;
+      for (int j=0; j < points[i].positions.size(); j++)
+      {
+        cost += std::pow((points[i+1].positions[j] - points[i].positions[j]), 2);
+      }
+      total_cost += std::sqrt(cost);
+    }
+    return total_cost;
   }
 
   void executingToStateCb(const robo_demo_msgs::JointTrajectoryPointStamped::ConstPtr& next_state)
@@ -97,6 +177,7 @@ public:
       return;
     }
     current_path_.pop_front();
+    current_path_cost_ = calculateCurrentPathCost();
     new_edge_ = true;
   }
 
@@ -105,8 +186,9 @@ public:
     // What if the planner gets a new goal first and publishes a new path to the goal and we handle that callback
     // first...potential race
     ROS_INFO("Collision detector recieved new goal");
-    if (hasCurrentPath())
-      current_path_.clear();
+    current_goal_ = new_goal_msg->data;
+    current_path_.clear();
+    current_path_cost_ = std::numeric_limits<double>::max();
   }
 
   bool hasCurrentPath()
