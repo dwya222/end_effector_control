@@ -135,7 +135,7 @@ public:
       double cost = 0.0;
       for (int j=0; j < current_path_[i].size(); j++)
       {
-        cost += std::pow((current_path_[i+1][j] - current_path_[i][j]), 2);
+        cost += abs(current_path_[i+1][j] - current_path_[i][j]);
       }
       total_cost += std::sqrt(cost);
     }
@@ -150,7 +150,7 @@ public:
       double cost = 0.0;
       for (int j=0; j < points[i].positions.size(); j++)
       {
-        cost += std::pow((points[i+1].positions[j] - points[i].positions[j]), 2);
+        cost += abs(points[i+1].positions[j] - points[i].positions[j]);
       }
       total_cost += std::sqrt(cost);
     }

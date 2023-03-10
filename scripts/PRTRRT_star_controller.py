@@ -35,6 +35,7 @@ class ControllerState(Enum):
 class PRTRRTstarController():
 
     def __init__(self):
+        rospy.set_param("/planning_process", "PRT-RRTstar")
         self.joint_names = PANDA_JOINT_NAMES
         self.control_dur = rospy.get_param('/control_dur', 1.0)
         self.controller_active = False

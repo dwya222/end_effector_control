@@ -29,6 +29,7 @@ from moveit_msgs.msg import (ExecuteTrajectoryAction, ExecuteTrajectoryGoal,
 from sensor_msgs.msg import JointState
 
 from demo_interface import DemoInterface
+import utils
 
 rospack = rospkg.RosPack()
 EE_CONTROL_PATH = rospack.get_path('end_effector_control')
@@ -53,6 +54,8 @@ class MonitorState(Enum):
 class RRTstarMonitor():
 
     def __init__(self):
+        # Set planning process param to inform recorder
+        rospy.set_param("/planning_process", "Monitored RRTstar")
         self.robot_interface = DemoInterface(node_initialized=True)
         self.robot_interface.move_group.set_planner_id("RRTstarkConfigRealTimeTesting")
         self.robot_interface.set_planning_time(1.0)
@@ -219,12 +222,12 @@ class RRTstarMonitor():
                          f"{self.current_state_positions}. \n new current path start positions: "
                          f"{self._new_current_path.points[0].positions}")
             return
-        if not self.almost_equal(self.current_goal, self._new_current_path.points[-1].positions):
+        if not utils.almost_equal(self.current_goal, self._new_current_path.points[-1].positions):
             rospy.logwarn("New path msg does NOT satisfy goal, not setting to current path")
             rospy.loginfo(f"goal: {self.current_goal}, last in path: "
                           f"{self._new_current_path.points[-1].positions}")
             return
-        new_path_cost = self.calculate_path_cost(self._new_current_path.points)
+        new_path_cost = utils.path_cost(self._new_current_path.points)
         rospy.loginfo(f"comparing new cost: {new_path_cost} to current: {self.current_path_cost}")
         if new_path_cost < self.current_path_cost:
             rospy.loginfo(f"Received new current path with better cost of {new_path_cost}, setting"
@@ -237,7 +240,7 @@ class RRTstarMonitor():
     def handle_new_goal(self):
         self.received_new_goal = True
         self.current_goal = self._new_goal_msg.data
-        if self.current_path and not self.almost_equal(self.current_goal,
+        if self.current_path and not utils.almost_equal(self.current_goal,
                                                        self.current_path[-1].positions):
             rospy.logwarn("Clearing current path, does NOT satisfy new goal")
             rospy.loginfo(f"goal: {self.current_goal}, last in path: {self.current_path[-1]}")
@@ -302,24 +305,6 @@ class RRTstarMonitor():
         with self.edge_clear_mutex:
             return self.current_path[1] == self.edge_clear_point
 
-    def calculate_path_cost(self, path=None):
-        if path is None:
-            path = self.current_path
-        cost = 0
-        for i in range(len(path) - 1):
-            position1 = np.array(path[i].positions)
-            position2 = np.array(path[i+1].positions)
-            cost += np.linalg.norm(position2 - position1)
-        return cost
-
-    def almost_equal(self, vec1, vec2, tol=0.01):
-        if len(vec1) != len(vec2):
-            return False
-        for (val1, val2) in zip(vec1, vec2):
-            if abs(val1 - val2) > tol:
-                return False
-        return True
-
     def initiate_next_move(self):
         rospy.loginfo("Initiating next move")
         self.current_path[1].time_from_start = rospy.Duration(self.control_dur)
@@ -341,7 +326,7 @@ class RRTstarMonitor():
         joint_state = JointState()
         self.robot_interface.move_group.set_start_state(new_start_state)
         self.current_path.pop(0)
-        self.current_path_cost = self.calculate_path_cost()
+        self.current_path_cost = utils.path_cost(self.current_path)
         self.edge_clear = False
 
     @abstractmethod
