@@ -9,7 +9,7 @@ import numpy as np
 
 import rospy
 import actionlib
-from std_msgs.msg import Float64MultiArray
+from std_msgs.msg import Float64MultiArray, String, Bool
 from robo_demo_msgs.msg import JointTrajectoryPointStamped, JointTrajectoryPointClearStamped
 from moveit_msgs.msg import (ExecuteTrajectoryAction, ExecuteTrajectoryGoal,
                              ExecuteTrajectoryActionResult)
@@ -17,6 +17,8 @@ from control_msgs.msg import (FollowJointTrajectoryAction, FollowJointTrajectory
                               FollowJointTrajectoryActionResult)
 from trajectory_msgs.msg import JointTrajectory
 from sensor_msgs.msg import JointState
+
+import utils
 
 HW_CONTROLLER_TOPIC = "/position_joint_trajectory_controller/follow_joint_trajectory"
 HW_CONTROLLER_RESULT_TOPIC = HW_CONTROLLER_TOPIC + "/result"
@@ -54,6 +56,9 @@ class PRTRRTstarController():
         self._new_controller_result_msg = None
         self.setup_controller()
         self.init_subs_pubs()
+        # Set planning process param to inform recorder
+        rospy.set_param("/planning_process", "PRT-RRTstar")
+        rospy.loginfo("PRTRRTstarController Initialized")
 
     def setup_controller(self):
         self.trajectory_client = actionlib.SimpleActionClient(self.controller_topic,
@@ -74,7 +79,7 @@ class PRTRRTstarController():
                                                       self.controller_result_cb, queue_size=1)
         self.executing_to_state_pub = rospy.Publisher("/executing_to_state",
                                                       JointTrajectoryPointStamped, queue_size=1)
-        rospy.loginfo(f"Publisher and subscribers initialized")
+        self.goal_achieved_pub = rospy.Publisher("/goal_achieved", Bool, queue_size=1)
 
     def current_path_cb(self, current_path_msg):
         rospy.loginfo("PRTRRTstar Controller received path msg")
@@ -126,10 +131,13 @@ class PRTRRTstarController():
             elif self.controller_state == ControllerState.EXECUTING:
                 if not self.controller_active and len(self.current_path) == 1:
                     rospy.logwarn("Robot controlled to goal state, awaiting next path")
+                    rospy.logwarn(f"path length: {len(self.current_path)}")
+                    self.goal_achieved_pub.publish(Bool(True))
                     self.current_path.clear()
                     self.controller_state = ControllerState.WAIT_FOR_PATH
                 elif not self.controller_active:
                     rospy.logwarn("Robot controlled to next state, awaiting next edge clear")
+                    rospy.logwarn(f"path length: {len(self.current_path)}")
                     self.controller_state = ControllerState.WAIT_FOR_EDGE_CLEAR
 
     def handle_callbacks(self):
@@ -163,6 +171,10 @@ class PRTRRTstarController():
 
     def handle_new_goal(self):
         self.current_goal = self._new_goal_msg.data
+        if self.current_path and utils.almost_equal(self.current_goal,
+                                                    self.current_path[-1].positions):
+            rospy.logwarn("Current path satisfies new goal, not clearing current path")
+            return
         self.received_new_goal = True
         self.current_path.clear()
 
@@ -170,7 +182,8 @@ class PRTRRTstarController():
         if self._new_controller_result_msg.status.status == 3:
             self.controller_active = False
         else:
-            rospy.logerr(f"Unexpected result message status. message: \n{result_msg}")
+            rospy.logerr("Unexpected result message status. message:\n"
+                         f"{self._new_controller_result_msg}")
             raise Exception('Throwing exception due to unexpected controller result')
 
     def current_path_solution(self):

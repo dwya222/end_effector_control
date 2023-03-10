@@ -19,16 +19,16 @@ from threading import RLock, Thread
 import actionlib
 import rospy
 import rospkg
-from std_msgs.msg import Float64MultiArray
-from std_msgs.msg import Bool
+from std_msgs.msg import Float64MultiArray, Bool, String
 from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryGoal
 from robo_demo_msgs.msg import JointTrajectoryPointStamped, JointTrajectoryPointClearStamped
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from moveit_msgs.msg import (ExecuteTrajectoryAction, ExecuteTrajectoryGoal,
-                             ExecuteTrajectoryActionResult, RobotState)
+                             ExecuteTrajectoryActionResult, RobotState, PlanningScene)
 from sensor_msgs.msg import JointState
 
 from demo_interface import DemoInterface
+import utils
 
 rospack = rospkg.RosPack()
 EE_CONTROL_PATH = rospack.get_path('end_effector_control')
@@ -55,9 +55,9 @@ class RRTstarMonitor():
     def __init__(self):
         self.robot_interface = DemoInterface(node_initialized=True)
         self.robot_interface.move_group.set_planner_id("RRTstarkConfigRealTimeTesting")
-        self.robot_interface.set_planning_time(1.0)
+        self.robot_interface.set_planning_time(2.0)
         self.control_dur = rospy.get_param('/control_dur', 1.0)
-        self.min_planning_time = rospy.get_param('/minimum_planning_time', 0.1)
+        self.min_planning_time = rospy.get_param('/minimum_planning_time', 0.3)
         self.control_end_time = rospy.Time.now()
         self.current_state_positions = (
                 self.robot_interface.move_group.get_current_state().joint_state.position[0:7])
@@ -69,6 +69,7 @@ class RRTstarMonitor():
         self.edge_clear_mutex = RLock()
         self.new_goal_mutex = RLock()
         self.controller_result_mutex = RLock()
+        self.planning_scene_mutex = RLock()
         self.return_first_solution = True
         self.received_new_goal = False
         self.controller_active = False
@@ -77,9 +78,15 @@ class RRTstarMonitor():
         self._new_edge_clear_msg = None
         self._new_goal_msg = None
         self._new_controller_result_msg = None
+        self._new_planning_scene_msg = None
+        self.new_obstacle_present = False
         self.joint_names = PANDA_JOINT_NAMES
         self.setup_controller()
         self.init_subs_pubs()
+        rospy.sleep(1.0)
+        # Set planning process param to inform recorder
+        rospy.set_param("/planning_process", "M-RRTstar")
+        rospy.loginfo("RRTstarMonitor Initialized")
 
     def setup_controller(self):
         self.trajectory_client = actionlib.SimpleActionClient(self.controller_topic,
@@ -98,9 +105,13 @@ class RRTstarMonitor():
         self.controller_result_sub = rospy.Subscriber(self.controller_result_topic,
                                                       self.controller_result_msg_type,
                                                       self.controller_result_cb, queue_size=1)
+        # self.planning_scene_sub = rospy.Subscriber("/move_group/monitored_planning_scene",
+        #                                             PlanningScene, self.planning_scene_cb,
+        #                                             queue_size=1)
         self.executing_to_state_pub = rospy.Publisher("/executing_to_state",
                                                       JointTrajectoryPointStamped, queue_size=1)
         self.preempt_planner_pub = rospy.Publisher("/preempt_planner", Bool, queue_size=1)
+        self.goal_achieved_pub = rospy.Publisher("/goal_achieved", Bool, queue_size=1)
 
     def current_path_cb(self, current_path_msg):
         rospy.loginfo("RRTstar Monitor received path msg")
@@ -111,6 +122,7 @@ class RRTstarMonitor():
         rospy.loginfo("RRTstar Monitor received edge clear msg")
         with self.edge_clear_mutex:
             self._new_edge_clear_msg = point_clear_msg
+            rospy.logwarn(f"clear status: {point_clear_msg.clear}")
 
     def new_goal_cb(self, new_goal_msg):
         rospy.loginfo("RRTstar Monitor received new goal msg")
@@ -122,6 +134,11 @@ class RRTstarMonitor():
         rospy.loginfo("RRTstar Monitor received controller result")
         with self.controller_result_mutex:
             self._new_controller_result_msg = result_msg
+
+    # def planning_scene_cb(self, planning_scene_msg):
+    #     rospy.loginfo("RRTstar Monitor received planning scene update")
+    #     with self.planning_scene_mutex:
+    #         self._new_planning_scene_msg = planning_scene_msg
 
     def run(self):
         while not rospy.is_shutdown():
@@ -136,10 +153,11 @@ class RRTstarMonitor():
             elif self.monitor_state == MonitorState.PLANNING:
                 # If we get a new goal while planning, preempt and
                 # restart planner
-                if self.received_new_goal:
-                    rospy.logwarn("Monitor received new goal while planning, replanning")
+                if self.received_new_goal or self.new_obstacle_present:
+                    rospy.logwarn("Monitor received new goal or obstacle while planning, replanning")
                     self.start_planning_thread(preempt=True)
                     self.received_new_goal = False
+                    self.new_obstacle_present = False
                 # If we get a current path, which means the planner
                 # completed and published, then wait for the next edge
                 # in the path to be cleared
@@ -147,16 +165,20 @@ class RRTstarMonitor():
                     self.monitor_state = MonitorState.WAIT_FOR_EDGE_CLEAR
                     rospy.logwarn("Monitor received current_path, waiting for edge clear")
             elif self.monitor_state == MonitorState.WAIT_FOR_EDGE_CLEAR:
-                if self.received_new_goal:
+                if self.received_new_goal or self.new_obstacle_present:
                     self.start_planning_thread()
-                    rospy.logwarn("Monitor received new goal waiting for edge clear, replanning")
+                    rospy.logwarn("Monitor received new goal or obstacle waiting for edge clear, replanning")
                     self.monitor_state = MonitorState.PLANNING
                     self.received_new_goal = False
+                    self.new_obstacle_present = False
                     continue
                 # There are 3 potential outcomes here:
                 # 1: waiting for the determination on the next edge
                 if not self.next_edge_checked():
-                    rospy.loginfo_throttle(1.0, "next edge not yet checked")
+                    rospy.loginfo_throttle(1.0, "next edge not yet checked, next_edge:\n"
+                                                f"{self.current_path[1].positions}")
+                    # rospy.loginfo_throttle(1.0, f"current_path:\n{self.current_path}, cost:\n"
+                    #                             f"{self.current_path_cost}")
                     continue
                 # 2: next edge is clear
                 elif self.next_edge_clear():
@@ -166,21 +188,23 @@ class RRTstarMonitor():
                 # 3: next edge is not clear
                 else:
                     rospy.logwarn("Monitor received edge NOT clear, replanning")
+                    rospy.sleep(0.1)
                     self.start_planning_thread(reset_path=True)
                     self.monitor_state = MonitorState.PLANNING
             elif self.monitor_state == MonitorState.EXECUTING:
-                # Allow the planner to plan and attempt to improve the
-                # rest of the current path while control executing
                 control_time_left = (self.control_end_time - rospy.Time.now()).to_sec()
-                if (not self.planning_thread.is_alive()
-                        and control_time_left >= self.min_planning_time):
-                    self.start_planning_thread(control_time_left=control_time_left)
                 if not self.controller_active and len(self.current_path) == 1:
                     rospy.logwarn("Robot controlled to goal state, awaiting next path")
+                    self.goal_achieved_pub.publish(Bool(True))
                     self.monitor_state = MonitorState.WAIT_FOR_GOAL
                 elif not self.controller_active:
                     rospy.logwarn("Robot controlled to next state, awaiting next edge clear")
                     self.monitor_state = MonitorState.WAIT_FOR_EDGE_CLEAR
+                # Allow the planner to plan and attempt to improve the
+                # rest of the current path while control executing
+                elif (not self.planning_thread.is_alive()
+                        and control_time_left >= self.min_planning_time):
+                    self.start_planning_thread(control_time_left=control_time_left)
 
     def handle_callbacks(self):
         with self.current_path_mutex:
@@ -203,6 +227,11 @@ class RRTstarMonitor():
                 rospy.loginfo("handling new controller result")
                 self.handle_new_controller_result()
                 self._new_controller_result_msg = None
+        # with self.planning_scene_mutex:
+        #     if self._new_planning_scene_msg:
+        #         rospy.loginfo("handling planning scene update")
+        #         self.handle_new_planning_scene_update()
+        #         self._new_planning_scene_msg = None
 
     def handle_new_current_path(self):
         """Update current path if the new one is better than the current one
@@ -215,16 +244,16 @@ class RRTstarMonitor():
             self.monitor_state = MonitorState.WAIT_FOR_GOAL
             return
         if not self.current_state_positions == self._new_current_path.points[0].positions:
-            rospy.logerr("New current path start positions mismatch. \ncurrent state positions: "
-                         f"{self.current_state_positions}. \n new current path start positions: "
+            rospy.logerr(f"current state mismatch:\n current_state: {self.current_state_positions}"
+                         "\n new current path start positions: "
                          f"{self._new_current_path.points[0].positions}")
             return
-        if not self.almost_equal(self.current_goal, self._new_current_path.points[-1].positions):
+        if not utils.almost_equal(self.current_goal, self._new_current_path.points[-1].positions):
             rospy.logwarn("New path msg does NOT satisfy goal, not setting to current path")
             rospy.loginfo(f"goal: {self.current_goal}, last in path: "
                           f"{self._new_current_path.points[-1].positions}")
             return
-        new_path_cost = self.calculate_path_cost(self._new_current_path.points)
+        new_path_cost = utils.path_cost(self._new_current_path.points)
         rospy.loginfo(f"comparing new cost: {new_path_cost} to current: {self.current_path_cost}")
         if new_path_cost < self.current_path_cost:
             rospy.loginfo(f"Received new current path with better cost of {new_path_cost}, setting"
@@ -237,7 +266,7 @@ class RRTstarMonitor():
     def handle_new_goal(self):
         self.received_new_goal = True
         self.current_goal = self._new_goal_msg.data
-        if self.current_path and not self.almost_equal(self.current_goal,
+        if self.current_path and not utils.almost_equal(self.current_goal,
                                                        self.current_path[-1].positions):
             rospy.logwarn("Clearing current path, does NOT satisfy new goal")
             rospy.loginfo(f"goal: {self.current_goal}, last in path: {self.current_path[-1]}")
@@ -249,13 +278,21 @@ class RRTstarMonitor():
     def handle_new_edge_clear(self):
         self.edge_clear = self._new_edge_clear_msg.clear
         self.edge_clear_point = self._new_edge_clear_msg.trajectory_point
+        rospy.logwarn(f"edge clear status: {self.edge_clear}\npoint: {self.edge_clear_point.positions}")
 
     def handle_new_controller_result(self):
         if self._new_controller_result_msg.status.status == 3:
             self.controller_active = False
         else:
-            rospy.logerr(f"Unexpected result message status. message: \n{result_msg}")
+            rospy.logerr("Unexpected result message status. message: "
+                         f"\n{self._new_controller_result_msg}")
             raise Exception('Throwing exception due to unexpected controller result')
+
+    # def handle_new_planning_scene_update(self):
+    #     if len(self._new_planning_scene_msg.world.collision_objects) > 0:
+    #         self.new_obstacle_present = True
+    #     else:
+    #         self.new_obstacle_present = False
 
     def start_planning_thread(self, reset_path=False, preempt=False, control_time_left=None):
         """ Create and start new planning thread
@@ -280,7 +317,9 @@ class RRTstarMonitor():
         return_first_solution = False if control_time_left else True
         self.planning_thread = Thread(target=self.robot_interface.plan_to_joint_goal,
                                       args=(self.current_goal, return_first_solution))
-        if not return_first_solution:
+        if return_first_solution:
+            self.robot_interface.set_planning_time(30.0)
+        else:
             self.robot_interface.set_planning_time(control_time_left)
         self.planning_thread.start()
         rospy.loginfo(f"Started planning thread, return_first_solution: {return_first_solution}")
@@ -300,25 +339,11 @@ class RRTstarMonitor():
 
     def next_edge_checked(self):
         with self.edge_clear_mutex:
-            return self.current_path[1] == self.edge_clear_point
-
-    def calculate_path_cost(self, path=None):
-        if path is None:
-            path = self.current_path
-        cost = 0
-        for i in range(len(path) - 1):
-            position1 = np.array(path[i].positions)
-            position2 = np.array(path[i+1].positions)
-            cost += np.linalg.norm(position2 - position1)
-        return cost
-
-    def almost_equal(self, vec1, vec2, tol=0.01):
-        if len(vec1) != len(vec2):
-            return False
-        for (val1, val2) in zip(vec1, vec2):
-            if abs(val1 - val2) > tol:
+            if self.edge_clear_point is not None:
+                return utils.almost_equal(self.current_path[1].positions,
+                                          self.edge_clear_point.positions)
+            else:
                 return False
-        return True
 
     def initiate_next_move(self):
         rospy.loginfo("Initiating next move")
@@ -341,29 +366,12 @@ class RRTstarMonitor():
         joint_state = JointState()
         self.robot_interface.move_group.set_start_state(new_start_state)
         self.current_path.pop(0)
-        self.current_path_cost = self.calculate_path_cost()
+        self.current_path_cost = utils.path_cost(self.current_path)
         self.edge_clear = False
 
     @abstractmethod
     def initiate_control(self):
         pass
-
-    def new_planner_goal(self, goal_msg):
-        self.robot_interface.smooth_stop()
-        self.current_goal = goal_msg.data
-        plan_start_time = rospy.Time.now()
-        self.robot_interface.go_to_joint_goal(self.current_goal, wait=False)
-        plan_time = (rospy.Time.now() - plan_start_time).to_sec()
-        rospy.logwarn(f"Time to plan: {plan_time}")
-
-    def obstacles_changed(self, changed_msg):
-        self.robot_interface.smooth_stop()
-        plan_start_time = rospy.Time.now()
-        self.robot_interface.go_to_joint_goal(self.current_goal, wait=False)
-        plan_time = (rospy.Time.now() - plan_start_time).to_sec()
-        rospy.logwarn(f"Time to plan: {plan_time}")
-        with open(PLAN_TIME_FILE_PATH, 'w') as f:
-            f.write(str(plan_time))
 
 
 class RRTstarHwMonitor(RRTstarMonitor):
@@ -398,6 +406,8 @@ class RRTstarSimMonitor(RRTstarMonitor):
     def initiate_control(self):
         current_point = self.current_path[0]
         goal_point = self.current_path[1]
+        rospy.loginfo(f"controller trajectory current_point:\n{current_point.positions}")
+        rospy.loginfo(f"controller trajectory goal_point:\n{goal_point.positions}")
         trajectory_msg = ExecuteTrajectoryGoal()
         trajectory_msg.trajectory.joint_trajectory.joint_names = self.joint_names
         current_point.time_from_start = rospy.Duration(0.0)

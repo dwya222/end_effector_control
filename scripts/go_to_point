@@ -9,17 +9,18 @@ from geometry_msgs.msg import Point
 def main():
   mover = DemoInterface()
   point_msg = Point()
-  manual = 'm' == input("Manually enter points or use defaults? Enter 'm' for manual")
+  manual = 'm' == input("Manually enter points or use defaults? Enter 'm' for manual: ")
+  print(f"manual set to: {manual}")
   while not rospy.is_shutdown():
       if manual:
           initial = input("Enter x position of point (or 's' for start): ")
           if initial=="s":
               mover.go_to_start(wait=False)
           else:
-              point_msg.x = float(init)
+              point_msg.x = float(initial)
               point_msg.y = float(input("Enter y position of point: "))
               point_msg.z = float(input("Enter z position of point: "))
-              mover.go_to_point(point_msg, wait=False)
+              mover.go_to_point(point_msg, approach="front", wait=False)
       else:
           query = int(input("Enter 1 to plan and go to start or 2 to plan and go to default goal position: "))
           if query == 1:
