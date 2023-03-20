@@ -19,8 +19,7 @@ from threading import RLock, Thread
 import actionlib
 import rospy
 import rospkg
-from std_msgs.msg import Float64MultiArray
-from std_msgs.msg import Bool
+from std_msgs.msg import Float64MultiArray, Bool, String
 from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryGoal
 from robo_demo_msgs.msg import JointTrajectoryPointStamped, JointTrajectoryPointClearStamped
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
@@ -54,8 +53,6 @@ class MonitorState(Enum):
 class RRTstarMonitor():
 
     def __init__(self):
-        # Set planning process param to inform recorder
-        rospy.set_param("/planning_process", "Monitored RRTstar")
         self.robot_interface = DemoInterface(node_initialized=True)
         self.robot_interface.move_group.set_planner_id("RRTstarkConfigRealTimeTesting")
         self.robot_interface.set_planning_time(1.0)
@@ -83,6 +80,9 @@ class RRTstarMonitor():
         self.joint_names = PANDA_JOINT_NAMES
         self.setup_controller()
         self.init_subs_pubs()
+        # Set planning process param to inform recorder
+        rospy.set_param("/planning_process", "Monitored RRTstar")
+        rospy.loginfo("RRTstarMonitor Initialized")
 
     def setup_controller(self):
         self.trajectory_client = actionlib.SimpleActionClient(self.controller_topic,

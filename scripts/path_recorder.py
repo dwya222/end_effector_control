@@ -6,7 +6,7 @@ import pandas as pd
 
 import rospy
 import rospkg
-from std_msgs.msg import Float64MultiArray
+from std_msgs.msg import Float64MultiArray, String
 from sensor_msgs.msg import JointState
 
 from robo_demo_msgs.msg import JointTrajectoryPointStamped
@@ -15,7 +15,8 @@ import utils
 rospack = rospkg.RosPack()
 EE_CONTROL_PATH = rospack.get_path('end_effector_control')
 PLANNING_DATA_PATH = os.path.join(EE_CONTROL_PATH, 'data', 'planning')
-COST_DATA_FILE_PATH = os.path.join(PLANNING_DATA_PATH, 'cost_data.csv')
+COST_DATA_FILE_PATH = os.path.join(PLANNING_DATA_PATH, 'planning_process_cost_data.csv')
+DATABASE_COLUMNS = ["Scenario", "Planning Process", "Total Cost", "Step Costs"]
 
 
 class PathRecorder():
@@ -28,14 +29,14 @@ class PathRecorder():
         rospy.loginfo("Path Recorder initialized")
 
     def initialize_db(self):
-        self.planning_process_str = rospy.get_param("/planning_process", "uninitialized")
-        self.scenario_str = rospy.get_param("/scenario", "uninitialized")
-        self.file_path = COST_DATA_FILE_PATH
-        self.dict_db = {'Planning_Process': self.planning_process_str,
-                        'Scenario': self.scenario_str,
-                        'Total_Cost': 0,
-                        'Step_Costs': []}
-        # self.db = pd.load_csv()..
+        self.db_path = COST_DATA_FILE_PATH
+        self.db_columns = DATABASE_COLUMNS
+        if os.path.exists(self.db_path):
+            self.db = pd.read_csv(self.db_path)
+            rospy.loginfo(f"initialized saved db: \n{self.db}")
+        else:
+            self.db = pd.DataFrame(columns=self.db_columns)
+            rospy.loginfo(f"initialized new db: \n{self.db}")
 
     def initialize_path_traversed(self):
         self.path_traversed = []
@@ -45,6 +46,8 @@ class PathRecorder():
     def init_subs(self):
         self.new_goal_sub = rospy.Subscriber("/new_planner_goal", Float64MultiArray,
                                              self.new_goal_cb, queue_size=1)
+        self.planning_process_sub = rospy.Subscriber("/planning_process", String,
+                                                     self.planning_process_cb, queue_size=1)
         self.executing_to_state_sub = rospy.Subscriber("/executing_to_state",
                                                        JointTrajectoryPointStamped,
                                                        self.executing_to_state_cb, queue_size=1)
@@ -52,23 +55,27 @@ class PathRecorder():
     def new_goal_cb(self, new_goal_msg):
         self.current_goal = new_goal_msg.data
 
+    def planning_process_cb(self, planning_process_msg):
+        self.planning_process_str = planning_process_msg.data
+
     def executing_to_state_cb(self, new_execution_msg):
         new_positions = new_execution_msg.trajectory_point.positions
         self.path_traversed.append(new_positions)
         if utils.almost_equal(self.current_goal, new_positions):
-            self.compute_path_info()
             self.store_path_info()
             self.path_traversed.clear()
 
-    def compute_path_info(self):
-        total_cost, step_costs = utils.path_cost(self.path_traversed, steps=True)
-        self.dict_db['Total_Cost'] = total_cost
-        self.dict_db['Step_Costs'] = step_costs
-
     def store_path_info(self):
-        rospy.loginfo(f"(not actually but will) Saving path info to...{self.file_path}")
-        rospy.loginfo(f"dict_db: {self.dict_db}")
+        scenario = rospy.get_param("/scenario", "uninitialized")
+        planning_process = rospy.get_param("/planning_process", "uninitialized")
+        total_cost, step_costs = utils.path_cost(self.path_traversed, steps=True)
+        db_entry = pd.DataFrame([[scenario, planning_process, total_cost, step_costs]],
+                                columns=self.db_columns)
+        rospy.loginfo(f"Saving path info to...{self.db_path}")
+        rospy.loginfo(f"db_entry:\n{db_entry}")
         rospy.loginfo("-----------------------------------------")
+        self.db = pd.concat([self.db, db_entry])
+        self.db.to_csv(self.db_path, index=False)
 
 
 if __name__ == "__main__":

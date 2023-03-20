@@ -86,7 +86,7 @@ public:
     }
     // Check if the new path achieves the goal
     if (almost_equal(new_path.points.back().positions, current_goal_, 0.01))
-      ROS_WARN("New path is a solution to the current goal");
+      ROS_INFO("New path IS a solution to the current goal");
     else
     {
       ROS_ERROR("New path is NOT a solution to the current goal");
@@ -137,7 +137,7 @@ public:
       {
         cost += abs(current_path_[i+1][j] - current_path_[i][j]);
       }
-      total_cost += std::sqrt(cost);
+      total_cost += cost;
     }
     return total_cost;
   }
@@ -152,7 +152,7 @@ public:
       {
         cost += abs(points[i+1].positions[j] - points[i].positions[j]);
       }
-      total_cost += std::sqrt(cost);
+      total_cost += cost;
     }
     return total_cost;
   }
@@ -167,8 +167,8 @@ public:
     {
       ROS_ERROR("Collision detector: recieved unexpected next state from controller");
       ROS_ERROR_STREAM("expected [" << current_path_[1][0] << ", " << current_path_[1][1] << ", " << current_path_[1][2]
-                       << ", " << current_path_[1][3] << ", " << current_path_[1][4] << current_path_[1][5] << ", " <<
-                       current_path_[1][6] << "]");
+                       << ", " << current_path_[1][3] << ", " << current_path_[1][4] << ", " <<  current_path_[1][5] <<
+                       ", " << current_path_[1][6] << "]");
       ROS_ERROR_STREAM("recieved [" << next_state->trajectory_point.positions[0] << ", " <<
                        next_state->trajectory_point.positions[1] << ", " << next_state->trajectory_point.positions[2] <<
                        ", " << next_state->trajectory_point.positions[3] << ", " <<
@@ -219,23 +219,41 @@ public:
 
     edge_clear_ = !res.collision;
     if (!edge_clear_)
-      ROS_ERROR("Detected edge NOT CLEAR");
+    {
+      ROS_ERROR("Detected edge NOT CLEAR, clearing current path");
+      /* current_path_.clear(); */
+      current_path_cost_ = std::numeric_limits<double>::max();
+    }
     if (needToPublish())
     {
       ROS_INFO_STREAM("Collision detector publishing: edge_clear_: " << edge_clear_);
+      std::string state1_str = "[";
+      std::string state2_str = "[";
       for (int j=0; j<7; j++)
-        ROS_INFO_STREAM("state 1, joint " << (j + 1) << ": " <<
-                        *state1_.getJointPositions("panda_joint" + std::to_string(j+1)));
+      {
+        if (j != 6)
+          state1_str += std::to_string(*state1_.getJointPositions("panda_joint" + std::to_string(j+1))) + ", ";
+        else
+          state1_str += std::to_string(*state1_.getJointPositions("panda_joint" + std::to_string(j+1))) + "]";
+      }
       for (int k=0; k<7; k++)
-        ROS_INFO_STREAM("state 2, joint " << (k + 1) << ": " <<
-                        *state2_.getJointPositions("panda_joint" + std::to_string(k+1)));
-      /* ROS_INFO_STREAM("Collision Detector state1: [" << current_path_[0][0] << ", " << current_path_[0][1] << ", " << */
-      /*                 current_path_[0][2] << ", " << current_path_[0][3] << ", " << current_path_[0][4] << ", " << */
-      /*                 current_path_[0][5] << ", " << current_path_[0][6] << "]"); */
-      /* ROS_INFO_STREAM("Collision Detector state2: [" << current_path_[1][0] << ", " << current_path_[1][1] << ", " << */
-      /*                 current_path_[1][2] << ", " << current_path_[1][3] << ", " << current_path_[1][4] << ", " << */
-      /*                 current_path_[1][5] << ", " << current_path_[1][6] << "]"); */
-      // Publish collision result
+      {
+        if (k != 6)
+          state2_str += std::to_string(*state2_.getJointPositions("panda_joint" + std::to_string(k+1))) + ", ";
+        else
+          state2_str += std::to_string(*state2_.getJointPositions("panda_joint" + std::to_string(k+1))) + "]";
+      }
+      std::string current_path_str = "[";
+      for (int l=0; l<7; l++)
+      {
+        if (l != 6)
+          current_path_str += std::to_string(current_path_[1][l]) + ", ";
+        else
+          current_path_str += std::to_string(current_path_[1][l]) + "]";
+      }
+      ROS_INFO_STREAM("State 1: " << state1_str);
+      ROS_INFO_STREAM("State 2: " << state2_str);
+      ROS_INFO_STREAM("Current path: " << current_path_str);
       robo_demo_msgs::JointTrajectoryPointClearStamped edge_clear_msg;
       edge_clear_msg.trajectory_point.positions = current_path_[1];
       edge_clear_msg.clear = !res.collision;

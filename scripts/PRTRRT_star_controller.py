@@ -9,7 +9,7 @@ import numpy as np
 
 import rospy
 import actionlib
-from std_msgs.msg import Float64MultiArray
+from std_msgs.msg import Float64MultiArray, String
 from robo_demo_msgs.msg import JointTrajectoryPointStamped, JointTrajectoryPointClearStamped
 from moveit_msgs.msg import (ExecuteTrajectoryAction, ExecuteTrajectoryGoal,
                              ExecuteTrajectoryActionResult)
@@ -35,7 +35,6 @@ class ControllerState(Enum):
 class PRTRRTstarController():
 
     def __init__(self):
-        rospy.set_param("/planning_process", "PRT-RRTstar")
         self.joint_names = PANDA_JOINT_NAMES
         self.control_dur = rospy.get_param('/control_dur', 1.0)
         self.controller_active = False
@@ -55,6 +54,9 @@ class PRTRRTstarController():
         self._new_controller_result_msg = None
         self.setup_controller()
         self.init_subs_pubs()
+        # Set planning process param to inform recorder
+        rospy.set_param("/planning_process", "PRT-RRTstar")
+        rospy.loginfo("PRTRRTstarController Initialized")
 
     def setup_controller(self):
         self.trajectory_client = actionlib.SimpleActionClient(self.controller_topic,
@@ -75,7 +77,6 @@ class PRTRRTstarController():
                                                       self.controller_result_cb, queue_size=1)
         self.executing_to_state_pub = rospy.Publisher("/executing_to_state",
                                                       JointTrajectoryPointStamped, queue_size=1)
-        rospy.loginfo(f"Publisher and subscribers initialized")
 
     def current_path_cb(self, current_path_msg):
         rospy.loginfo("PRTRRTstar Controller received path msg")
