@@ -178,6 +178,13 @@ public:
     }
     current_path_.pop_front();
     current_path_cost_ = calculateCurrentPathCost();
+    ROS_INFO_STREAM("Current path cost updated to " << current_path_cost_);
+    if (current_path_cost_ == 0)
+    {
+      current_path_cost_ = std::numeric_limits<double>::max();
+      ROS_WARN_STREAM("Current path cost updated to " << current_path_cost_);
+    }
+
     new_edge_ = true;
   }
 
@@ -194,7 +201,17 @@ public:
   bool hasCurrentPath()
   {
     if (current_path_.empty() || current_path_.size() == 1)
+    {
+      ROS_WARN_THROTTLE(1.0, "Not checking collision: current path empty");
       return false;
+    }
+    else if (current_path_.size() == 1)
+    {
+      ROS_WARN_STREAM_THROTTLE(1.0, "Not checking collision: current path = [" <<  current_path_[0][0] <<
+                               current_path_[0][1] << current_path_[0][2] << current_path_[0][3] << current_path_[0][4]
+                               << current_path_[0][5] << current_path_[0][6] << "]");
+      return false;
+    }
     return true;
   }
 
@@ -220,40 +237,15 @@ public:
     edge_clear_ = !res.collision;
     if (!edge_clear_)
     {
-      ROS_ERROR("Detected edge NOT CLEAR, clearing current path");
+      ROS_ERROR_THROTTLE(1.0, "Detected edge NOT CLEAR, clearing current path");
+      printInfo(true);
       /* current_path_.clear(); */
       current_path_cost_ = std::numeric_limits<double>::max();
     }
     if (needToPublish())
     {
       ROS_INFO_STREAM("Collision detector publishing: edge_clear_: " << edge_clear_);
-      std::string state1_str = "[";
-      std::string state2_str = "[";
-      for (int j=0; j<7; j++)
-      {
-        if (j != 6)
-          state1_str += std::to_string(*state1_.getJointPositions("panda_joint" + std::to_string(j+1))) + ", ";
-        else
-          state1_str += std::to_string(*state1_.getJointPositions("panda_joint" + std::to_string(j+1))) + "]";
-      }
-      for (int k=0; k<7; k++)
-      {
-        if (k != 6)
-          state2_str += std::to_string(*state2_.getJointPositions("panda_joint" + std::to_string(k+1))) + ", ";
-        else
-          state2_str += std::to_string(*state2_.getJointPositions("panda_joint" + std::to_string(k+1))) + "]";
-      }
-      std::string current_path_str = "[";
-      for (int l=0; l<7; l++)
-      {
-        if (l != 6)
-          current_path_str += std::to_string(current_path_[1][l]) + ", ";
-        else
-          current_path_str += std::to_string(current_path_[1][l]) + "]";
-      }
-      ROS_INFO_STREAM("State 1: " << state1_str);
-      ROS_INFO_STREAM("State 2: " << state2_str);
-      ROS_INFO_STREAM("Current path: " << current_path_str);
+      printInfo();
       robo_demo_msgs::JointTrajectoryPointClearStamped edge_clear_msg;
       edge_clear_msg.trajectory_point.positions = current_path_[1];
       edge_clear_msg.clear = !res.collision;
@@ -285,6 +277,46 @@ public:
     return publish;
   }
 
+  void printInfo(bool throttle=false)
+  {
+    std::string state1_str = "[";
+    std::string state2_str = "[";
+    for (int j=0; j<7; j++)
+    {
+      if (j != 6)
+        state1_str += std::to_string(*state1_.getJointPositions("panda_joint" + std::to_string(j+1))) + ", ";
+      else
+        state1_str += std::to_string(*state1_.getJointPositions("panda_joint" + std::to_string(j+1))) + "]";
+    }
+    for (int k=0; k<7; k++)
+    {
+      if (k != 6)
+        state2_str += std::to_string(*state2_.getJointPositions("panda_joint" + std::to_string(k+1))) + ", ";
+      else
+        state2_str += std::to_string(*state2_.getJointPositions("panda_joint" + std::to_string(k+1))) + "]";
+    }
+    std::string current_path_str = "[";
+    for (int l=0; l<7; l++)
+    {
+      if (l != 6)
+        current_path_str += std::to_string(current_path_[1][l]) + ", ";
+      else
+        current_path_str += std::to_string(current_path_[1][l]) + "]";
+    }
+    if (throttle)
+    {
+      ROS_INFO_STREAM_THROTTLE(1.0, "State 1: " << state1_str);
+      ROS_INFO_STREAM_THROTTLE(1.0, "State 2: " << state2_str);
+      ROS_INFO_STREAM_THROTTLE(1.0, "Next state in current_path: " << current_path_str);
+    }
+    else
+    {
+      ROS_INFO_STREAM("State 1: " << state1_str);
+      ROS_INFO_STREAM("State 2: " << state2_str);
+      ROS_INFO_STREAM("Current path: " << current_path_str);
+    }
+  }
+
 };
 
 
@@ -300,8 +332,8 @@ int main(int argc, char** argv)
     ros::spinOnce();
     if (ccc.hasCurrentPath())
       ccc.checkCollision();
-    else
-      ROS_WARN_THROTTLE(5.0, "Not checking collision: path to goal not set or on the way to/at goal");
+    /* else */
+    /*   ROS_WARN_THROTTLE(5.0, "Not checking collision: path to goal not set or on the way to/at goal"); */
     ros::Duration(0.05).sleep();
   }
 }

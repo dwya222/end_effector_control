@@ -8,7 +8,7 @@ import rospy
 from sensor_msgs.msg import JointState
 
 def save_joint_state(joint_state_msg, out_dir="./"):
-    position = joint_state_msg.position
+    position = joint_state_msg.position[0:-2]
     next_file_name = get_next_file_name(out_dir)
     with open(os.path.join(out_dir, next_file_name), 'w') as out_file:
         yaml.safe_dump(position, out_file)
