@@ -48,6 +48,6 @@ class TestAutomator():
 
 if __name__ == "__main__":
     rospy.init_node("automate_testing_node")
-    test_dict = {'change_goal': 30, 'add_obstacle': 30, 'add_obstacle_change_goal': 30}
+    test_dict = {'change_goal': 50, 'add_obstacle': 50, 'add_obstacle_change_goal': 50}
     ta = TestAutomator(test_dict)
     # ta = TestAutomator()
