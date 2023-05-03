@@ -267,7 +267,7 @@ class TestInterfacePRTRRTstar(TestInterface):
         rospy.loginfo("Starting primed PRTRRTstar planning")
         self.new_goal_pub.publish(Float64MultiArray(self.layout, self.final_goal))
         self.start_solve_time = rospy.Time.now() + rospy.Duration(self.priming_secs)
-        rospy.sleep(self.priming_secs + 1.0)
+        rospy.sleep(self.priming_secs + 0.2)
         self.add_ball()
         # rospy.loginfo("Sending final joint goal")
         # self.new_goal_pub.publish(Float64MultiArray(self.layout, self.final_goal))

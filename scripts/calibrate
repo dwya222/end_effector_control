@@ -28,7 +28,7 @@ class DemoCalibrator:
         joint_position_samples = []
         for joint_position_sample in sorted(os.listdir(joint_position_samples_dir)):
             with open(os.path.join(joint_position_samples_dir, joint_position_sample)) as f:
-                joint_position_samples.append(yaml.safe_load(f))
+                joint_position_samples.append(yaml.safe_load(f)[0:7])
         return joint_position_samples
 
     def calibrate(self, sample_data=None):

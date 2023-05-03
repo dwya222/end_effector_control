@@ -38,7 +38,7 @@ class PRTRRTstarController():
 
     def __init__(self):
         self.joint_names = PANDA_JOINT_NAMES
-        self.control_dur = rospy.get_param('/control_dur', 1.0)
+        self.control_dur = rospy.get_param('/control_dur', 3.0)
         self.controller_active = False
         self.current_path_mutex = RLock()
         self.edge_clear_mutex = RLock()
@@ -247,6 +247,8 @@ class PRTRRTstarHwController(PRTRRTstarController):
 
     def initiate_control(self):
         goal_point = self.current_path[1]
+        goal_point.velocities = [0., 0., 0., 0., 0., 0., 0.]
+        rospy.logwarn(f"goal point: {goal_point}")
         trajectory_msg = FollowJointTrajectoryGoal()
         trajectory_msg.trajectory.joint_names = self.joint_names
         trajectory_msg.trajectory.points.append(goal_point)

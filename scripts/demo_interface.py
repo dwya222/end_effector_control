@@ -212,9 +212,20 @@ class DemoInterface(object):
     def listen_for_goal(self):
         rospy.Subscriber(self.goal_object_topic, Point, callback=self.filter_detection_noise,
                          queue_size=1)
-        rospy.spin()
+        # rospy.spin()
 
     def filter_detection_noise(self, goal_point):
+        """
+        TODO 1: if the planning fails, and the goal point doesn't move above the threshold, then
+        the robot will not attempt to replan. Should incorporate a method of evaluating whether or
+        not planning was successful, and if it wasn't then replan to the previous goal point.
+
+        TODO 2: Also looks like the demo interface can get behind the camera data stream
+        occasianally, where the camera is able to recognize the position of the box and publishes
+        it, but the rviz planning scene shows an old position of the box. Still need to diagnose
+        why this happens.
+        """
+        rospy.loginfo_throttle(3.0, "filtering detection noise")
         if self.prev_goal_point:
             diff = self.euclidean_distance(self.prev_goal_point, goal_point)
             if diff > MAX_COMMAND_POINT_DIFF:
