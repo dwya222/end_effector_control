@@ -91,7 +91,7 @@ class TestInterface():
                           'add_obstacle': self.run_add_obstacle_test,
                           'add_obstacle_change_goal': self.run_add_obstacle_change_goal_test}
         self.layout = MultiArrayLayout()
-        self.priming_secs = rospy.get_param('/move_group/planner_configs/RTRRTstarkConfigDefault/'
+        self.priming_secs = rospy.get_param('/move_group/planner_configs/PRTRRTstarkConfigDefault/'
                 'prime_tree_secs', 0.0)
         self.current_path = []
         self.waiting_for_first_solution = False

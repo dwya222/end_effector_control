@@ -54,7 +54,7 @@ class ChangeGoalTestInterface():
         self.initial_target = INITIAL_TARGET
         self.final_target = FINAL_TARGET
         self.layout = MultiArrayLayout()
-        config_str = "/move_group/planner_configs/RTRRTstarkConfigDefault/"
+        config_str = "/move_group/planner_configs/PRTRRTstarkConfigDefault/"
         self.priming_secs = rospy.get_param(config_str + 'prime_tree_secs', 0.0)
         self.rewiring_enabled = rospy.get_param(config_str + 'enable_root_rewiring', 1)
         self.current_path = []

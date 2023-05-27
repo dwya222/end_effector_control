@@ -11,7 +11,7 @@ def parse_joint_goal(filename):
 
 if __name__ == "__main__":
     d = DemoInterface()
-    d.set_planner_id("RTRRTstarkConfigDefault")
+    d.set_planner_id("PRTRRTstarkConfigDefault")
     joint_goal = []
     if len(sys.argv) > 1:
         joint_goal = parse_joint_goal(sys.argv[1])
